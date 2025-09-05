@@ -7,14 +7,15 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Bienvenido a tu Armario'),
         centerTitle: true,
       ),
-      body: const Padding(
-        padding: EdgeInsets.all(20.0),
-        child: LoginForm(), // Aquí usamos nuestro widget de formulario
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: LoginForm(), // Aquí usamos nuestro widget de formulario
+        ),
       ),
     );
   }
