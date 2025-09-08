@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "206327220012",
+    "project_id": "armario-virtual-4c54d",
+    "storage_bucket": "armario-virtual-4c54d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:206327220012:android:356a2fe3abe45a4b444e89",
+        "android_client_info": {
+          "package_name": "com.example.armario_virtual"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAZujQBEXU7t19Sut3-73M98kyKdCU1k8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

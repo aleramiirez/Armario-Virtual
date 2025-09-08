@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:armario_virtual/screens/login/login_screen.dart'; 
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:armario_virtual/widgets/auth_gate.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -16,8 +22,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      debugShowCheckedModeBanner: false, // Quita la banda de "Debug"
-      home: const LoginScreen(), // ¡Aquí establecemos nuestra pantalla de login!
+      debugShowCheckedModeBanner: false, 
+      home: const AuthGate(), 
     );
   }
 }

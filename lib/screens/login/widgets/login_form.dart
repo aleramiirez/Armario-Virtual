@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:armario_virtual/screens/registration/registration_screen.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -9,14 +11,11 @@ class LoginForm extends StatefulWidget {
 
 class _LoginFormState extends State<LoginForm> {
   final _formKey = GlobalKey<FormState>();
-
-  // 1. Creamos los controladores
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
   bool _isPasswordVisible = false;
+  bool _isLoading = false; // Añadido para gestionar el estado de carga
 
-  // 2. No olvides liberarlos cuando el widget se destruya
   @override
   void dispose() {
     _emailController.dispose();
@@ -24,17 +23,61 @@ class _LoginFormState extends State<LoginForm> {
     super.dispose();
   }
 
-  void _submitForm() {
-    // Primero, validamos el formulario
+  Future<void> _submitForm() async {
     final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) return;
 
-    if (isValid) {
-      // Si el formulario es válido, aquí irá la lógica de Firebase
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
       final email = _emailController.text;
       final password = _passwordController.text;
-      print('Email: $email');
-      print('Contraseña: $password');
-      // Por ahora, solo imprimimos los valores en la consola
+
+      await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      // La navegación a HomeScreen ya es manejada por AuthGate, así que no se necesita nada aquí.
+
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Ocurrió un error';
+      if (e.code == 'user-not-found') {
+        errorMessage = 'No se encontró un usuario con ese correo.';
+      } else if (e.code == 'wrong-password') {
+        errorMessage = 'La contraseña es incorrecta.';
+      } else if (e.code == 'invalid-credential' || e.code == 'invalid-email') {
+        errorMessage = 'Las credenciales no son válidas.';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Ocurrió un error inesperado.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -56,44 +99,36 @@ class _LoginFormState extends State<LoginForm> {
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Por favor, introduce tu correo';
-              }
-              // Simple validación de email
-              if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value)) {
+              if (value == null || !RegExp(r'\S+@\S+\.\S+').hasMatch(value)) {
                 return 'Por favor, introduce un correo válido';
               }
-              return null; // El valor es correcto
+              return null;
             },
           ),
           const SizedBox(height: 20),
           TextFormField(
             controller: _passwordController,
+            obscureText: !_isPasswordVisible,
             decoration: InputDecoration(
               labelText: 'Contraseña',
-              prefixIcon: Icon(Icons.lock_outline),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.lock_outline),
+              border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(
                   _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
                 ),
                 onPressed: () {
-                  // setState actualiza la UI al cambiar la variable
                   setState(() {
                     _isPasswordVisible = !_isPasswordVisible;
                   });
                 },
               ),
             ),
-            obscureText: true,
             validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Por favor, introduce tu contraseña';
-              }
-              if (value.length < 6) {
+              if (value == null || value.length < 6) {
                 return 'La contraseña debe tener al menos 6 caracteres';
               }
-              return null; // El valor es correcto
+              return null;
             },
           ),
           const SizedBox(height: 30),
@@ -104,12 +139,18 @@ class _LoginFormState extends State<LoginForm> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: _submitForm,
-            child: const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 16)),
+            onPressed: _isLoading ? null : _submitForm,
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 15),
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (ctx) => const RegistrationScreen()),
+              );
+            },
             child: const Text('¿No tienes cuenta? Regístrate'),
           ),
         ],
