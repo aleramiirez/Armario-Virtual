@@ -6,23 +6,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image/image.dart' as img;
+import 'package:http/http.dart' as http;
 
 Future<Map<String, dynamic>> _decodeImage(String imagePath) async {
-  
   final imageBytes = await File(imagePath).readAsBytes();
   final image = img.decodeImage(imageBytes);
-
   if (image == null) {
-    return {
-      'file': File(imagePath),
-      'aspectRatio': 1.0,
-    };
+    return {'file': File(imagePath), 'aspectRatio': 1.0};
   }
-
-  return {
-    'file': File(imagePath),
-    'aspectRatio': image.width / image.height,
-  };
+  return {'file': File(imagePath), 'aspectRatio': image.width / image.height};
 }
 
 class AddGarmentForm extends StatefulWidget {
@@ -33,11 +25,15 @@ class AddGarmentForm extends StatefulWidget {
 }
 
 class _AddGarmentFormState extends State<AddGarmentForm> {
+  // --- ¡IMPORTANTE! Pega tu API Key aquí ---
+  final String _removeBgApiKey = 'tYhEo95Y3WK6BstT1NbhJKzs'; // ¡Ojo! Exponer API Keys así no es seguro para producción
+  
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   File? _selectedImage;
   double? _imageAspectRatio;
   bool _isLoading = false;
+  String _loadingMessage = '';
 
   @override
   void dispose() {
@@ -51,16 +47,33 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       source: ImageSource.gallery,
       imageQuality: 50,
     );
-
     if (pickedImage == null) return;
-
-    // Llama a la función pesada en segundo plano
     final imageDetails = await compute(_decodeImage, pickedImage.path);
-
     setState(() {
       _selectedImage = imageDetails['file'] as File;
       _imageAspectRatio = imageDetails['aspectRatio'] as double;
     });
+  }
+  
+  Future<File?> _removeBackground(File imageFile) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('https://api.remove.bg/v1.0/removebg'),
+    );
+    request.headers['X-Api-Key'] = _removeBgApiKey;
+    request.files.add(await http.MultipartFile.fromPath('image_file', imageFile.path));
+    
+    final response = await request.send();
+
+    if (response.statusCode == 200) {
+      final imageBytes = await response.stream.toBytes();
+      final newFile = await imageFile.writeAsBytes(imageBytes);
+      return newFile;
+    } else {
+      final errorBody = await response.stream.bytesToString();
+      print('Error de Remove.bg: $errorBody');
+      throw Exception('Error al quitar el fondo de la imagen.');
+    }
   }
 
   Future<void> _submitForm() async {
@@ -77,20 +90,35 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       );
       return;
     }
-    setState(() { _isLoading = true; });
+
+    setState(() {
+      _isLoading = true;
+      _loadingMessage = 'Quitando el fondo...';
+    });
+
     try {
+      final imageWithoutBg = await _removeBackground(_selectedImage!);
+      if (imageWithoutBg == null) return;
+
+      setState(() { _loadingMessage = 'Subiendo imagen...'; });
+
       final user = FirebaseAuth.instance.currentUser!;
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('garment_images')
-          .child('${user.uid}_${DateTime.now().toIso8601String()}.jpg');
-      await storageRef.putFile(_selectedImage!);
+          .child('${user.uid}_${DateTime.now().toIso8601String()}.png');
+
+      await storageRef.putFile(imageWithoutBg);
       final imageUrl = await storageRef.getDownloadURL();
+      
+      setState(() { _loadingMessage = 'Guardando datos...'; });
+
       await FirebaseFirestore.instance.collection('users').doc(user.uid).collection('garments').add({
         'name': _nameController.text,
         'imageUrl': imageUrl,
         'createdAt': Timestamp.now(),
       });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -107,7 +135,7 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al guardar la prenda: $error'),
+            content: Text('Error: ${error.toString()}'),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -116,7 +144,12 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
         );
       }
     } finally {
-      if (mounted) { setState(() { _isLoading = false; }); }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadingMessage = '';
+        });
+      }
     }
   }
 
@@ -176,7 +209,14 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
               padding: const EdgeInsets.symmetric(vertical: 15),
             ),
             child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(color: Colors.white),
+                      const SizedBox(width: 24),
+                      Text(_loadingMessage),
+                    ],
+                  )
                 : const Text('GUARDAR PRENDA', style: TextStyle(fontSize: 16)),
           ),
         ],
