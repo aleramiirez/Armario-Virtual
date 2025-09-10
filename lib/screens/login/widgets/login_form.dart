@@ -53,7 +53,7 @@ class _LoginFormState extends State<LoginForm> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -133,12 +133,6 @@ class _LoginFormState extends State<LoginForm> {
           ),
           const SizedBox(height: 30),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
             onPressed: _isLoading ? null : _submitForm,
             child: _isLoading
                 ? const CircularProgressIndicator(color: Colors.white)
