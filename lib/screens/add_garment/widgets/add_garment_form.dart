@@ -29,7 +29,6 @@ class AddGarmentForm extends StatefulWidget {
 
 class _AddGarmentFormState extends State<AddGarmentForm> {
   final String _removeBgApiKey = 'tYhEo95Y3WK6BstT1NbhJKzs';
-
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   File? _selectedImage;

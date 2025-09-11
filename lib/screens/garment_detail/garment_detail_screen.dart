@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:armario_virtual/theme/app_theme.dart';
 
-// --- WIDGET PRINCIPAL (GESTOR DE ESTADO) ---
 class GarmentDetailScreen extends StatefulWidget {
   final String garmentId;
   final Map<String, dynamic> garmentData;
@@ -56,7 +55,6 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
       ),
     );
     if (wantsToDelete == null || !wantsToDelete) return;
-
     setState(() {
       _isLoading = true;
     });
@@ -99,6 +97,12 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
           ),
         );
       }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Prenda eliminada')));
+      }
+    } catch (e) {
+      throw Exception(e);
     } finally {
       if (mounted) {
         setState(() {
@@ -112,6 +116,8 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
     if (newName.trim().isEmpty || newName.trim() == widget.garmentData['name'])
       return;
 
+  Future<void> _saveChanges() async {
+    if (_nameController.text.trim().isEmpty) return;
     setState(() {
       _isLoading = true;
     });
@@ -123,6 +129,7 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
           .collection('garments')
           .doc(widget.garmentId)
           .update({'name': newName.trim()});
+          .update({'name': _nameController.text.trim()});
       setState(() {
         widget.garmentData['name'] = newName.trim();
         _nameController.text = newName.trim();
@@ -144,6 +151,13 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
       appBar: AppBar(
         title: Text(_nameController.text),
         actions: [
+          if (_isEditing)
+            IconButton(icon: const Icon(Icons.check), onPressed: _saveChanges)
+          else
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => setState(() => _isEditing = true),
+            ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: _deleteGarment,
@@ -163,7 +177,6 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
   }
 }
 
-// --- WIDGET DE LA VISTA (SOLO MUESTRA LA UI) ---
 class _GarmentDetailView extends StatelessWidget {
   final String garmentId;
   final String imageUrl;
@@ -210,7 +223,6 @@ class _GarmentDetailView extends StatelessWidget {
   }
 }
 
-// --- WIDGET EDITOR DE ETIQUETAS "EN VIVO" ---
 class _LiveGarmentTagsEditor extends StatefulWidget {
   final String garmentId;
   final List<String> initialTags;
@@ -335,10 +347,22 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
   }
 }
 
-// --- WIDGET DEL NOMBRE (CON ESTADO Y EDICIÓN AL PULSAR) ---
 class _GarmentNameDisplay extends StatefulWidget {
   final String initialName;
   final Function(String newName) onNameSaved;
+              isEditing: isEditing,
+              nameController: nameController,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GarmentNameDisplay extends StatelessWidget {
+  final bool isEditing;
+  final TextEditingController nameController;
 
   const _GarmentNameDisplay({
     required this.initialName,

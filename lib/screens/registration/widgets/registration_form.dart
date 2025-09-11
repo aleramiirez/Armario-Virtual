@@ -13,7 +13,7 @@ class _RegistrationFormState extends State<RegistrationForm> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
-  bool _isLoading = false; // Añadido para gestionar la carga
+  bool _isLoading = false;
 
   @override
   void dispose() {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'widgets/login_form.dart'; // Importamos nuestro nuevo widget
+import 'widgets/login_form.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -14,7 +14,7 @@ class LoginScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
-          child: LoginForm(), // Aquí usamos nuestro widget de formulario
+          child: LoginForm(),
         ),
       ),
     );
