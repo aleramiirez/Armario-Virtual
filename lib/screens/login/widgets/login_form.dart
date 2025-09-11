@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:armario_virtual/screens/registration/registration_screen.dart';
 
 class LoginForm extends StatefulWidget {
@@ -14,7 +15,7 @@ class _LoginFormState extends State<LoginForm> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
-  bool _isLoading = false; // Añadido para gestionar el estado de carga
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -35,10 +36,10 @@ class _LoginFormState extends State<LoginForm> {
       final email = _emailController.text;
       final password = _passwordController.text;
 
-      await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: password);
-      // La navegación a HomeScreen ya es manejada por AuthGate, así que no se necesita nada aquí.
-
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Ocurrió un error';
       if (e.code == 'user-not-found') {
@@ -55,7 +56,9 @@ class _LoginFormState extends State<LoginForm> {
             content: Text(errorMessage),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           ),
         );
@@ -67,7 +70,53 @@ class _LoginFormState extends State<LoginForm> {
             content: const Text('Ocurrió un error inesperado.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error al iniciar sesión con Google: ${error.toString()}',
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           ),
         );
@@ -143,6 +192,27 @@ class _LoginFormState extends State<LoginForm> {
             child: _isLoading
                 ? const CircularProgressIndicator(color: Colors.white)
                 : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 16)),
+          ),
+          const SizedBox(height: 15),
+          Row(
+            mainAxisAlignment:
+                MainAxisAlignment.center, // Centra el contenido de la fila
+            children: [
+              ElevatedButton.icon(
+                icon: Image.asset('assets/google.png', height: 22.0),
+                label: const Text('Continuar con Google'),
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  backgroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.grey),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 20,
+                  ),
+                ),
+                onPressed: _isLoading ? null : _signInWithGoogle,
+              ),
+            ],
           ),
           const SizedBox(height: 15),
           TextButton(

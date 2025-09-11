@@ -25,8 +25,7 @@ class AddGarmentForm extends StatefulWidget {
 }
 
 class _AddGarmentFormState extends State<AddGarmentForm> {
-  // --- ¡IMPORTANTE! Pega tu API Key aquí ---
-  final String _removeBgApiKey = 'tYhEo95Y3WK6BstT1NbhJKzs'; // ¡Ojo! Exponer API Keys así no es seguro para producción
+  final String _removeBgApiKey = 'tYhEo95Y3WK6BstT1NbhJKzs';
   
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -70,8 +69,6 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       final newFile = await imageFile.writeAsBytes(imageBytes);
       return newFile;
     } else {
-      final errorBody = await response.stream.bytesToString();
-      print('Error de Remove.bg: $errorBody');
       throw Exception('Error al quitar el fondo de la imagen.');
     }
   }

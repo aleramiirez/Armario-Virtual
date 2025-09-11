@@ -3,7 +3,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// --- WIDGET PRINCIPAL (GESTOR DE ESTADO) ---
 class GarmentDetailScreen extends StatefulWidget {
   final String garmentId;
   final Map<String, dynamic> garmentData;
@@ -40,37 +39,66 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar Eliminación'),
-        content: const Text('¿Estás seguro de que quieres eliminar esta prenda?'),
+        content: const Text(
+          '¿Estás seguro de que quieres eliminar esta prenda?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Eliminar')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar'),
+          ),
         ],
       ),
     );
     if (wantsToDelete == null || !wantsToDelete) return;
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
     try {
       final user = FirebaseAuth.instance.currentUser!;
-      await FirebaseStorage.instance.refFromURL(widget.garmentData['imageUrl']).delete();
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).collection('garments').doc(widget.garmentId).delete();
+      await FirebaseStorage.instance
+          .refFromURL(widget.garmentData['imageUrl'])
+          .delete();
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('garments')
+          .doc(widget.garmentId)
+          .delete();
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Prenda eliminada')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Prenda eliminada')));
       }
     } catch (e) {
+      throw Exception(e);
     } finally {
-      if(mounted) { setState(() { _isLoading = false; }); }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _saveChanges() async {
     if (_nameController.text.trim().isEmpty) return;
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
     try {
       final user = FirebaseAuth.instance.currentUser!;
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).collection('garments').doc(widget.garmentId).update({
-        'name': _nameController.text.trim(),
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('garments')
+          .doc(widget.garmentId)
+          .update({'name': _nameController.text.trim()});
       setState(() {
         widget.garmentData['name'] = _nameController.text.trim();
         _isEditing = false;
@@ -78,7 +106,11 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
     } catch (e) {
       // Manejar error...
     } finally {
-       if(mounted) { setState(() { _isLoading = false; }); }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -91,8 +123,14 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
           if (_isEditing)
             IconButton(icon: const Icon(Icons.check), onPressed: _saveChanges)
           else
-            IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => setState(() => _isEditing = true)),
-          IconButton(icon: const Icon(Icons.delete_outline), onPressed: _deleteGarment),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => setState(() => _isEditing = true),
+            ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _deleteGarment,
+          ),
         ],
       ),
       body: _isLoading
@@ -106,8 +144,6 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
   }
 }
 
-
-// --- WIDGET DE LA VISTA (SOLO MUESTRA LA UI) ---
 class _GarmentDetailView extends StatelessWidget {
   final String imageUrl;
   final TextEditingController nameController;
@@ -135,7 +171,7 @@ class _GarmentDetailView extends StatelessWidget {
             _GarmentNameDisplay(
               isEditing: isEditing,
               nameController: nameController,
-            )
+            ),
           ],
         ),
       ),
@@ -143,8 +179,6 @@ class _GarmentDetailView extends StatelessWidget {
   }
 }
 
-
-// --- WIDGET DEL NOMBRE (MUESTRA TEXTO O EDITOR) ---
 class _GarmentNameDisplay extends StatelessWidget {
   final bool isEditing;
   final TextEditingController nameController;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:armario_virtual/screens/add_garment/add_garment_screen.dart';
 import 'package:armario_virtual/screens/garment_detail/garment_detail_screen.dart';
 
@@ -38,7 +39,9 @@ class _HomeScreenState extends State<HomeScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return const Center(child: Text('Ocurrió un error al cargar las prendas.'));
+            return const Center(
+              child: Text('Ocurrió un error al cargar las prendas.'),
+            );
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(
@@ -60,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context, index) {
               final garmentDoc = garments[index];
               final garmentData = garmentDoc.data() as Map<String, dynamic>;
-              
+
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -75,18 +78,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 child: Card(
                   clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
-                        child: Image.network(
-                          garmentData['imageUrl'],
+                        child: CachedNetworkImage(
+                          imageUrl: garmentData['imageUrl'],
                           fit: BoxFit.cover,
-                          loadingBuilder: (context, child, progress) {
-                            if (progress == null) return child;
-                            return const Center(child: CircularProgressIndicator());
-                          },
+                          placeholder: (context, url) =>
+                              const Center(child: CircularProgressIndicator()),
+                          errorWidget: (context, url, error) =>
+                              const Icon(Icons.error),
                         ),
                       ),
                       Padding(
@@ -109,9 +114,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (ctx) => const AddGarmentScreen()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (ctx) => const AddGarmentScreen()));
         },
         child: const Icon(Icons.add),
       ),
