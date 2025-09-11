@@ -1,9 +1,14 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:armario_virtual/theme/app_theme.dart';
+import 'package:armario_virtual/utils/color_namer.dart';
+import 'package:translator/translator.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
+// --- WIDGET PRINCIPAL (GESTOR DE ESTADO GENERAL) ---
 class GarmentDetailScreen extends StatefulWidget {
   final String garmentId;
   final Map<String, dynamic> garmentData;
@@ -55,9 +60,11 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
       ),
     );
     if (wantsToDelete == null || !wantsToDelete) return;
+
     setState(() {
       _isLoading = true;
     });
+
     try {
       final user = FirebaseAuth.instance.currentUser!;
       await FirebaseStorage.instance
@@ -69,9 +76,11 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
           .collection('garments')
           .doc(widget.garmentId)
           .delete();
+
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: const Text('Prenda eliminada con éxito'),
             backgroundColor: AppTheme.colorExito,
@@ -97,12 +106,6 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
           ),
         );
       }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Prenda eliminada')));
-      }
-    } catch (e) {
-      throw Exception(e);
     } finally {
       if (mounted) {
         setState(() {
@@ -112,15 +115,10 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
     }
   }
 
-  Future<void> _saveChanges(String newName) async {
+  Future<void> _saveNameChange(String newName) async {
     if (newName.trim().isEmpty || newName.trim() == widget.garmentData['name'])
       return;
 
-  Future<void> _saveChanges() async {
-    if (_nameController.text.trim().isEmpty) return;
-    setState(() {
-      _isLoading = true;
-    });
     try {
       final user = FirebaseAuth.instance.currentUser!;
       await FirebaseFirestore.instance
@@ -129,19 +127,12 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
           .collection('garments')
           .doc(widget.garmentId)
           .update({'name': newName.trim()});
-          .update({'name': _nameController.text.trim()});
       setState(() {
         widget.garmentData['name'] = newName.trim();
         _nameController.text = newName.trim();
       });
     } catch (e) {
-      // Manejar error...
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      // Manejar error si es necesario
     }
   }
 
@@ -151,13 +142,6 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
       appBar: AppBar(
         title: Text(_nameController.text),
         actions: [
-          if (_isEditing)
-            IconButton(icon: const Icon(Icons.check), onPressed: _saveChanges)
-          else
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () => setState(() => _isEditing = true),
-            ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: _deleteGarment,
@@ -168,27 +152,22 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _GarmentDetailView(
               garmentId: widget.garmentId,
-              imageUrl: widget.garmentData['imageUrl'],
-              initialName: widget.garmentData['name'],
-              initialTags: List<String>.from(widget.garmentData['tags'] ?? []),
-              onNameSaved: _saveChanges,
+              garmentData: widget.garmentData,
+              onNameSaved: _saveNameChange,
             ),
     );
   }
 }
 
+// --- WIDGET DE LA VISTA (SOLO MUESTRA LA UI) ---
 class _GarmentDetailView extends StatelessWidget {
   final String garmentId;
-  final String imageUrl;
-  final String initialName;
-  final List<String> initialTags;
+  final Map<String, dynamic> garmentData;
   final Function(String newName) onNameSaved;
 
   const _GarmentDetailView({
     required this.garmentId,
-    required this.imageUrl,
-    required this.initialName,
-    required this.initialTags,
+    required this.garmentData,
     required this.onNameSaved,
   });
 
@@ -202,11 +181,11 @@ class _GarmentDetailView extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: Image.network(imageUrl),
+              child: Image.network(garmentData['imageUrl']),
             ),
             const SizedBox(height: 24),
             _GarmentNameDisplay(
-              initialName: initialName,
+              initialName: garmentData['name'],
               onNameSaved: onNameSaved,
             ),
             const SizedBox(height: 20),
@@ -214,7 +193,7 @@ class _GarmentDetailView extends StatelessWidget {
             const SizedBox(height: 10),
             _LiveGarmentTagsEditor(
               garmentId: garmentId,
-              initialTags: initialTags,
+              initialTags: List<String>.from(garmentData['tags'] ?? []),
             ),
           ],
         ),
@@ -223,6 +202,7 @@ class _GarmentDetailView extends StatelessWidget {
   }
 }
 
+// --- WIDGET EDITOR DE ETIQUETAS "EN VIVO" ---
 class _LiveGarmentTagsEditor extends StatefulWidget {
   final String garmentId;
   final List<String> initialTags;
@@ -238,7 +218,13 @@ class _LiveGarmentTagsEditor extends StatefulWidget {
 
 class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
   late List<String> _tags;
+  bool _isLoadingAi = false;
   final _tagController = TextEditingController();
+
+  final Map<String, String> _customTranslations = {
+    'camisa activa': 'camisa deportiva',
+    'chaqueta de sport': 'chaqueta de deporte'
+  };
 
   @override
   void initState() {
@@ -258,11 +244,12 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
       _tagController.clear();
       return;
     }
-    ;
 
     setState(() {
       _tags.add(trimmedTag);
-    }); // Actualiza UI al instante
+    });
+    _tagController.clear();
+
     final user = FirebaseAuth.instance.currentUser!;
     final garmentRef = FirebaseFirestore.instance
         .collection('users')
@@ -272,13 +259,13 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
     await garmentRef.update({
       'tags': FieldValue.arrayUnion([trimmedTag]),
     });
-    _tagController.clear();
   }
 
   Future<void> _deleteTag(String tag) async {
     setState(() {
       _tags.remove(tag);
-    }); // Actualiza UI al instante
+    });
+
     final user = FirebaseAuth.instance.currentUser!;
     final garmentRef = FirebaseFirestore.instance
         .collection('users')
@@ -317,12 +304,107 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
     );
   }
 
+  Future<void> _fetchAiTags() async {
+    setState(() {
+      _isLoadingAi = true;
+    });
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('get_ai_tags_for_garment');
+      final results = await callable.call<Map<String, dynamic>>({
+        'garmentId': widget.garmentId,
+      });
+
+      final translator = GoogleTranslator();
+      final aiLabels = List<String>.from(results.data['aiLabels'] ?? []);
+      final aiColors = List<String>.from(results.data['aiColors'] ?? []);
+
+      List<String> processedAiTags = [];
+      for (final label in aiLabels) {
+        final translation = await translator.translate(
+          label,
+          from: 'en',
+          to: 'es',
+        );
+        String translatedText = translation.text.toLowerCase();
+
+        // --- AQUÍ ESTÁ LA LÓGICA DE REEMPLAZO ---
+        if (_customTranslations.containsKey(translatedText)) {
+          translatedText = _customTranslations[translatedText]!;
+        }
+        // --- FIN DE LA LÓGICA ---
+
+        processedAiTags.add(translatedText);
+      }
+      processedAiTags.addAll(aiColors.map(ColorNamer.getClosestColorName));
+
+      final uniqueNewTags = processedAiTags
+          .where((tag) => !_tags.contains(tag))
+          .toList();
+
+      if (uniqueNewTags.isNotEmpty) {
+        final user = FirebaseAuth.instance.currentUser!;
+        final garmentRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('garments')
+            .doc(widget.garmentId);
+        await garmentRef.update({'tags': FieldValue.arrayUnion(uniqueNewTags)});
+
+        setState(() {
+          _tags.addAll(uniqueNewTags);
+        });
+      }
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error de IA: ${e.message}')));
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ha ocurrido un error inesperado.')),
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingAi = false;
+        });
+      }
+    }
+  }
+
+  void setStateIfMounted(f) {
+    if (mounted) setState(f);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),
+            if (_isLoadingAi)
+              const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              IconButton(
+                icon: Icon(
+                  Icons.auto_awesome,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                tooltip: 'Generar etiquetas con IA',
+                onPressed: _fetchAiTags,
+              ),
+          ],
+        ),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8.0,
@@ -347,22 +429,10 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
   }
 }
 
+// --- WIDGET DEL NOMBRE (CON ESTADO Y EDICIÓN AL PULSAR) ---
 class _GarmentNameDisplay extends StatefulWidget {
   final String initialName;
   final Function(String newName) onNameSaved;
-              isEditing: isEditing,
-              nameController: nameController,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GarmentNameDisplay extends StatelessWidget {
-  final bool isEditing;
-  final TextEditingController nameController;
 
   const _GarmentNameDisplay({
     required this.initialName,
