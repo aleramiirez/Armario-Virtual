@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image/image.dart' as img;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 Future<Map<String, dynamic>> _decodeImage(String imagePath) async {
   final imageBytes = await File(imagePath).readAsBytes();
@@ -71,11 +72,59 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
     final imagePicker = ImagePicker();
     final pickedImage = await imagePicker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 50,
+      imageQuality: 80,
     );
     if (pickedImage == null) return;
-    _processImage(pickedImage.path);
+
+    // Llama a la nueva función de recorte
+    _cropImage(pickedImage.path);
   }
+
+  Future<void> _cropImage(String imagePath) async {
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: imagePath,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Recortar Imagen',
+          toolbarColor:
+              AppTheme.colorPrimario, // Color de la barra superior del recorte
+          toolbarWidgetColor:
+              Colors.white, // Color de los iconos (incluye el tick)
+          statusBarColor: AppTheme
+              .colorPrimario, // Color de la barra de estado del teléfono durante el recorte
+          activeControlsWidgetColor: AppTheme
+              .colorPrimario, // Color de las líneas de recorte y de los botones activos
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: false,
+          aspectRatioPresets: [
+            CropAspectRatioPreset.square,
+            CropAspectRatioPreset.ratio3x2,
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.ratio4x3,
+            CropAspectRatioPreset.ratio16x9,
+          ],
+        ),
+        IOSUiSettings(
+          title: 'Recortar Imagen',
+          aspectRatioLockEnabled: false,
+          // Y también aquí para iOS
+          aspectRatioPresets: [
+            CropAspectRatioPreset.square,
+            CropAspectRatioPreset.ratio3x2,
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.ratio4x3,
+            CropAspectRatioPreset.ratio16x9,
+          ],
+        ),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
+    _processImage(croppedFile.path);
+  }
+
+  // En _AddGarmentFormState dentro de add_garment_form.dart
 
   Future<void> _pickImageFromUrl() async {
     final urlController = TextEditingController();
@@ -101,10 +150,12 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       ),
     );
     if (url == null || url.trim().isEmpty) return;
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Descargando imagen...';
     });
+
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -113,9 +164,13 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
             '${tempDir.path}/${DateTime.now().toIso8601String()}.jpg';
         final file = File(tempPath);
         await file.writeAsBytes(response.bodyBytes);
-        await _processImage(tempPath);
+
+        // --- AHORA LLAMAMOS A _cropImage TAMBIÉN AQUÍ ---
+        await _cropImage(tempPath);
       } else {
-        throw Exception('No se pudo descargar la imagen.');
+        throw Exception(
+          'No se pudo descargar la imagen. Código: ${response.statusCode}',
+        );
       }
     } catch (e) {
       if (mounted)
@@ -295,9 +350,7 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
           const SizedBox(height: 30),
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Nombre de la prenda',
-            ),
+            decoration: const InputDecoration(labelText: 'Nombre de la prenda'),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Por favor, introduce un nombre.';
