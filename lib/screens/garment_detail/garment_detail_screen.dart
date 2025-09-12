@@ -286,8 +286,6 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
 
   final Map<String, String> _customTranslations = {
     'camisa activa': 'camisa deportiva',
-    'pantalones cortos': 'shorts',
-    'camiseta sin mangas': 'camiseta de tirantes',
   };
 
   @override
@@ -303,14 +301,21 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
   }
 
   Future<void> _addTag(String tag) async {
-    final trimmedTag = tag.trim();
-    if (trimmedTag.isEmpty || _tags.contains(trimmedTag)) {
+    // 1. Normaliza la nueva etiqueta a minúsculas
+    final newTag = tag.trim().toLowerCase();
+
+    // 2. Crea una lista temporal de las etiquetas existentes, también en minúsculas
+    final existingTagsLower = _tags.map((t) => t.toLowerCase()).toList();
+
+    // 3. Comprueba si la etiqueta está vacía o si ya existe (sin distinguir mayúsculas)
+    if (newTag.isEmpty || existingTagsLower.contains(newTag)) {
       _tagController.clear();
-      return;
+      return; // Si ya existe, no hacemos nada
     }
 
+    // 4. Añade la etiqueta a la UI y a Firebase (siempre en minúsculas para consistencia)
     setState(() {
-      _tags.add(trimmedTag);
+      _tags.add(newTag);
     });
     _tagController.clear();
 
@@ -321,7 +326,7 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
         .collection('garments')
         .doc(widget.garmentId);
     await garmentRef.update({
-      'tags': FieldValue.arrayUnion([trimmedTag]),
+      'tags': FieldValue.arrayUnion([newTag]),
     });
   }
 
@@ -399,10 +404,22 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
 
         processedAiTags.add(translatedText);
       }
-      processedAiTags.addAll(aiColors.map(ColorNamer.getClosestColorName));
+      processedAiTags.addAll(
+        aiColors.map(
+          (colorHex) => ColorNamer.getClosestColorName(colorHex).toLowerCase(),
+        ),
+      ); // Convertir color a minúsculas
 
+      // --- CAMBIO CLAVE 1: Normalizar tus etiquetas _tags existentes a minúsculas para la comparación ---
+      final existingTagsLower = _tags
+          .map((t) => t.toLowerCase())
+          .toSet(); // Usar un Set para eficiencia
+
+      // --- CAMBIO CLAVE 2: Filtrar las etiquetas de IA que no estén ya en la lista existente (sin distinguir mayúsculas) ---
       final uniqueNewTags = processedAiTags
-          .where((tag) => !_tags.contains(tag))
+          .where(
+            (tag) => !existingTagsLower.contains(tag),
+          ) // Compara con la lista normalizada
           .toList();
 
       if (uniqueNewTags.isNotEmpty) {
