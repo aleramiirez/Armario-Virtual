@@ -1,6 +1,7 @@
 from firebase_functions import https_fn, options
 from firebase_admin import initialize_app, firestore
 from google.cloud import vision
+from googleapiclient.discovery import build
 import logging
 
 initialize_app()
@@ -11,6 +12,53 @@ WORDS_TO_EXCLUDE = {
     "design", "clothing", "outerwear", "fashion", "style", "font", "logo",
     "fashion design",
 }
+
+@https_fn.on_call(secrets=["CUSTOM_SEARCH_API_KEY"])
+def find_similar_products(req: https_fn.Request) -> https_fn.Response:
+    """
+    Busca productos similares usando las etiquetas de una prenda.
+    """
+    # 1. Recibe los datos de la app de Flutter
+    tags = req.data.get("tags")
+    if not tags:
+        raise https_fn.HttpsError(code="invalid-argument", message="Faltan las etiquetas.")
+
+    search_engine_id = "a4ef255231839499a"
+    api_key = options.SECRET_MANAGER.get("AIzaSyA4mvFNmj9fDQ9_dPGZoPOzATC2UAS0z-M")
+
+    # 2. Construye la consulta de búsqueda
+    # Usamos las primeras 5 etiquetas para hacer una búsqueda más precisa
+    query = " ".join(tags[:5])
+    logging.info(f"Buscando productos para la consulta: '{query}'")
+
+    # 3. Llama al API de Búsqueda Personalizada
+    try:
+        service = build("customsearch", "v1", developerKey=api_key)
+        result = (
+            service.cse()
+            .list(
+                q=query,
+                cx=search_engine_id,
+                searchType="image",
+                num=10, # Pide 10 resultados
+            )
+            .execute()
+        )
+    except Exception as e:
+        logging.error(f"Error al llamar al API de búsqueda: {e}")
+        raise https_fn.HttpsError(code="internal", message="Error al realizar la búsqueda.")
+
+    # 4. Procesa y devuelve los resultados
+    products = []
+    if "items" in result:
+        for item in result["items"]:
+            products.append({
+                "title": item.get("title"),
+                "link": item.get("image", {}).get("contextLink"),
+                "imageUrl": item.get("link"),
+            })
+    
+    return {"products": products}
 
 @https_fn.on_call()
 def get_ai_tags_for_garment(req: https_fn.Request) -> https_fn.Response:
