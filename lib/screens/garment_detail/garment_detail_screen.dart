@@ -6,6 +6,7 @@ import 'package:armario_virtual/theme/app_theme.dart';
 import 'package:armario_virtual/utils/color_namer.dart';
 import 'package:translator/translator.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // --- WIDGET PRINCIPAL (GESTOR DE ESTADO GENERAL) ---
 class GarmentDetailScreen extends StatefulWidget {
@@ -135,22 +136,58 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
     }
   }
 
-  void _findSimilarItems() {
-    // 1. Coger las etiquetas de la prenda
-    final tags = List<String>.from(widget.garmentData['tags'] ?? []);
-    final aiTags = List<String>.from(widget.garmentData['aiLabels'] ?? []);
-    final allTags = {...tags, ...aiTags}.toList();
+  Future<void> _findSimilarItems() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final manualTags = List<String>.from(widget.garmentData['tags'] ?? []);
+      final aiLabels = List<String>.from(widget.garmentData['aiLabels'] ?? []);
+      final allTags = {...manualTags, ...aiLabels}.toList();
 
-    if (allTags.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay etiquetas para buscar.')),
+      if (allTags.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay etiquetas para buscar.')),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('findSimilarProducts');
+      final results = await callable.call<Map<String, dynamic>>({
+        'tags': allTags,
+      });
+      final products = List<Map<String, dynamic>>.from(
+        results.data['products'] ?? [],
       );
-      return;
+
+      if (mounted) {
+        showModalBottomSheet(
+          context: context,
+          builder: (ctx) => _SearchResultsSheet(products: products),
+        );
+      }
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de búsqueda: ${e.message}')),
+        );
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ha ocurrido un error inesperado.')),
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-
-    print('Buscando prendas similares con las etiquetas: $allTags');
-
-    // 2. Próximamente: Llamar a la Cloud Function y mostrar resultados
   }
 
   @override
@@ -216,6 +253,7 @@ class _GarmentDetailView extends StatelessWidget {
             _LiveGarmentTagsEditor(
               garmentId: garmentId,
               initialTags: List<String>.from(garmentData['tags'] ?? []),
+              garmentData: garmentData,
             ),
           ],
         ),
@@ -228,10 +266,13 @@ class _GarmentDetailView extends StatelessWidget {
 class _LiveGarmentTagsEditor extends StatefulWidget {
   final String garmentId;
   final List<String> initialTags;
+  final Map<String, dynamic>
+  garmentData; // Necesario para obtener las etiquetas de IA
 
   const _LiveGarmentTagsEditor({
     required this.garmentId,
     required this.initialTags,
+    required this.garmentData,
   });
 
   @override
@@ -245,7 +286,8 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
 
   final Map<String, String> _customTranslations = {
     'camisa activa': 'camisa deportiva',
-    'chaqueta de sport': 'chaqueta de deporte',
+    'pantalones cortos': 'shorts',
+    'camiseta sin mangas': 'camiseta de tirantes',
   };
 
   @override
@@ -351,11 +393,9 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
         );
         String translatedText = translation.text.toLowerCase();
 
-        // --- AQUÍ ESTÁ LA LÓGICA DE REEMPLAZO ---
         if (_customTranslations.containsKey(translatedText)) {
           translatedText = _customTranslations[translatedText]!;
         }
-        // --- FIN DE LA LÓGICA ---
 
         processedAiTags.add(translatedText);
       }
@@ -395,10 +435,6 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
         });
       }
     }
-  }
-
-  void setStateIfMounted(f) {
-    if (mounted) setState(f);
   }
 
   @override
@@ -531,5 +567,60 @@ class _GarmentNameDisplayState extends State<_GarmentNameDisplay> {
         ),
       );
     }
+  }
+}
+
+// --- WIDGET PARA MOSTRAR LOS RESULTADOS DE BÚSQUEDA ---
+class _SearchResultsSheet extends StatelessWidget {
+  final List<Map<String, dynamic>> products;
+
+  const _SearchResultsSheet({required this.products});
+
+  Future<void> _launchUrl(String urlString) async {
+    final uri = Uri.parse(urlString);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      // Manejar error
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: Text('No se encontraron prendas similares.')),
+      );
+    }
+
+    return DraggableScrollableSheet(
+      expand: false,
+      builder: (context, scrollController) {
+        return ListView.builder(
+          controller: scrollController,
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return ListTile(
+              leading: product['imageUrl'] != null
+                  ? Image.network(
+                      product['imageUrl'],
+                      width: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.image_not_supported),
+                    )
+                  : const Icon(Icons.image_not_supported),
+              title: Text(product['title'] ?? 'Sin título'),
+              subtitle: Text(
+                product['link']?.split('/')[2] ?? 'Fuente desconocida',
+              ),
+              onTap: product['link'] != null
+                  ? () => _launchUrl(product['link'])
+                  : null,
+            );
+          },
+        );
+      },
+    );
   }
 }
