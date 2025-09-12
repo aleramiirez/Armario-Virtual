@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -136,12 +135,35 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
     }
   }
 
+  void _findSimilarItems() {
+    // 1. Coger las etiquetas de la prenda
+    final tags = List<String>.from(widget.garmentData['tags'] ?? []);
+    final aiTags = List<String>.from(widget.garmentData['aiLabels'] ?? []);
+    final allTags = {...tags, ...aiTags}.toList();
+
+    if (allTags.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay etiquetas para buscar.')),
+      );
+      return;
+    }
+
+    print('Buscando prendas similares con las etiquetas: $allTags');
+
+    // 2. Próximamente: Llamar a la Cloud Function y mostrar resultados
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_nameController.text),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_bag_outlined),
+            tooltip: 'Buscar prendas similares',
+            onPressed: _findSimilarItems,
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: _deleteGarment,
@@ -223,7 +245,7 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
 
   final Map<String, String> _customTranslations = {
     'camisa activa': 'camisa deportiva',
-    'chaqueta de sport': 'chaqueta de deporte'
+    'chaqueta de sport': 'chaqueta de deporte',
   };
 
   @override

@@ -365,9 +365,13 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: Colors.white,
+                      const SizedBox(
+                        height: 20, // Ajusta el tamaño según veas
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          color: Colors.white,
+                        ),
                       ),
                       const SizedBox(width: 24),
                       Text(_loadingMessage),
