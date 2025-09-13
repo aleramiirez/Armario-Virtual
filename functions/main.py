@@ -1,77 +1,28 @@
 from firebase_functions import https_fn, options
 from firebase_admin import initialize_app, firestore
 from google.cloud import vision
-from googleapiclient.discovery import build
 import logging
+import requests
 
+# Inicializa Firebase
 initialize_app()
 options.set_global_options(region="europe-west1")
 
+# --- LISTA DE PALABRAS A EXCLUIR ---
 WORDS_TO_EXCLUDE = {
     "textile", "fabric", "material", "product", "sleeve", "pattern",
     "design", "clothing", "outerwear", "fashion", "style", "font", "logo",
     "fashion design",
 }
 
+# --- FUNCIÓN PARA OBTENER ETIQUETAS DE IA ---
 @https_fn.on_call(secrets=["CUSTOM_SEARCH_API_KEY"])
-def find_similar_products(req: https_fn.Request) -> https_fn.Response:
-    """
-    Busca productos similares usando las etiquetas de una prenda.
-    """
-    # 1. Recibe los datos de la app de Flutter
-    tags = req.data.get("tags")
-    if not tags:
-        raise https_fn.HttpsError(code="invalid-argument", message="Faltan las etiquetas.")
-
-    search_engine_id = "a4ef255231839499a"
-    api_key = options.SECRET_MANAGER.get("AIzaSyA4mvFNmj9fDQ9_dPGZoPOzATC2UAS0z-M")
-
-    # 2. Construye la consulta de búsqueda
-    # Usamos las primeras 5 etiquetas para hacer una búsqueda más precisa
-    query = " ".join(tags[:5])
-    logging.info(f"Buscando productos para la consulta: '{query}'")
-
-    # 3. Llama al API de Búsqueda Personalizada
-    try:
-        service = build("customsearch", "v1", developerKey=api_key)
-        result = (
-            service.cse()
-            .list(
-                q=query,
-                cx=search_engine_id,
-                searchType="image",
-                num=10, # Pide 10 resultados
-            )
-            .execute()
-        )
-    except Exception as e:
-        logging.error(f"Error al llamar al API de búsqueda: {e}")
-        raise https_fn.HttpsError(code="internal", message="Error al realizar la búsqueda.")
-
-    # 4. Procesa y devuelve los resultados
-    products = []
-    if "items" in result:
-        for item in result["items"]:
-            products.append({
-                "title": item.get("title"),
-                "link": item.get("image", {}).get("contextLink"),
-                "imageUrl": item.get("link"),
-            })
-    
-    return {"products": products}
-
-@https_fn.on_call()
 def get_ai_tags_for_garment(req: https_fn.Request) -> https_fn.Response:
-    """
-    Recibe el ID de una prenda, la analiza con la API de Vision y devuelve las etiquetas.
-    """
-    
     if req.auth is None:
         raise https_fn.HttpsError(code="unauthenticated", message="La función debe ser llamada por un usuario autenticado.")
 
     user_id = req.auth.uid
     garment_id = req.data.get("garmentId")
-
     if not garment_id:
         raise https_fn.HttpsError(code="invalid-argument", message="Falta el parámetro 'garmentId'.")
 
@@ -96,7 +47,7 @@ def get_ai_tags_for_garment(req: https_fn.Request) -> https_fn.Response:
     response = client.annotate_image({
         "image": image,
         "features": [
-            {"type_": vision.Feature.Type.LABEL_DETECTION, "max_results": 10},
+            {"type_": vision.Feature.Type.LABEL_DETECTION, "max_results": 15},
             {"type_": vision.Feature.Type.IMAGE_PROPERTIES, "max_results": 5},
         ],
     })
@@ -106,7 +57,7 @@ def get_ai_tags_for_garment(req: https_fn.Request) -> https_fn.Response:
         for label in response.label_annotations
         if label.score > 0.75 and label.description.lower() not in WORDS_TO_EXCLUDE
     }
-        
+    
     processed_colors = []
     dominant_colors = response.image_properties_annotation.dominant_colors.colors
     for color_info in dominant_colors:
@@ -128,3 +79,67 @@ def get_ai_tags_for_garment(req: https_fn.Request) -> https_fn.Response:
         "aiLabels": list(processed_labels),
         "aiColors": processed_colors,
     }
+
+# --- FUNCIÓN PARA BUSCAR PRODUCTOS SIMILARES ---
+@https_fn.on_call(secrets=["CUSTOM_SEARCH_API_KEY"])
+def find_similar_products(req: https_fn.Request) -> https_fn.Response:
+    tags = req.data.get("tags")
+    if not tags:
+        raise https_fn.HttpsError(code="invalid-argument", message="Faltan las etiquetas.")
+
+    search_engine_id = "AQUÍ_VA_TU_ID_DE_MOTOR_DE_BÚSQUEDA"
+    api_key = options.SECRET_MANAGER.get("CUSTOM_SEARCH_API_KEY")
+
+    query = " ".join(tags[:5])
+    logging.info(f"Buscando productos para la consulta: '{query}'")
+
+    try:
+        service = build("customsearch", "v1", developerKey=api_key)
+        result = (
+            service.cse()
+            .list(
+                q=query,
+                cx=search_engine_id,
+                searchType="image",
+                num=10,
+            )
+            .execute()
+        )
+    except Exception as e:
+        logging.error(f"Error al llamar al API de búsqueda: {e}")
+        raise https_fn.HttpsError(code="internal", message="Error al realizar la búsqueda.")
+
+    products = []
+    if "items" in result:
+        for item in result["items"]:
+            products.append({
+                "title": item.get("title"),
+                "link": item.get("image", {}).get("contextLink"),
+                "imageUrl": item.get("link"),
+            })
+    
+    return {"products": products}
+
+# --- FUNCIÓN PARA QUITAR EL FONDO DE IMAGEN ---
+@https_fn.on_call(secrets=["REMOVE_BG_API_KEY"])
+def remove_background_from_image(req: https_fn.Request) -> https_fn.Response:
+    image_bytes = req.data.get("imageBytes")
+    if not image_bytes:
+        raise https_fn.HttpsError(code="invalid-argument", message="Faltan los bytes de la imagen.")
+
+    api_key = options.SECRET_MANAGER.get("REMOVE_BG_API_KEY")
+
+    try:
+        response = requests.post(
+            "https://api.remove.bg/v1.0/removebg",
+            files={"image_file": image_bytes},
+            data={"size": "auto"},
+            headers={"X-Api-Key": api_key},
+        )
+        response.raise_for_status()
+        
+        return {"imageBytes": response.content}
+        
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error al llamar a la API de remove.bg: {e}")
+        raise https_fn.HttpsError(code="internal", message="Error al procesar la imagen.")

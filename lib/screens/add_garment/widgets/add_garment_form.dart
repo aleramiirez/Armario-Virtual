@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -28,7 +30,6 @@ class AddGarmentForm extends StatefulWidget {
 }
 
 class _AddGarmentFormState extends State<AddGarmentForm> {
-  final String _removeBgApiKey = 'tYhEo95Y3WK6BstT1NbhJKzs';
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   File? _selectedImage;
@@ -216,24 +217,23 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
   }
 
   Future<File?> _removeBackground(File imageFile) async {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('https://api.remove.bg/v1.0/removebg'),
+    // 1. Lee la imagen como bytes
+    final imageBytes = await imageFile.readAsBytes();
+
+    // 2. Llama a la Cloud Function que creamos para esto
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'europe-west1',
+    ).httpsCallable('remove_background_from_image');
+
+    final results = await callable.call<Map<String, dynamic>>({
+      'imageBytes': imageBytes,
+    });
+
+    // 3. Recibe la imagen sin fondo y la guarda en el archivo temporal
+    final processedImageBytes = results.data['imageBytes'] as List<int>;
+    return await imageFile.writeAsBytes(
+      Uint8List.fromList(processedImageBytes),
     );
-    request.headers['X-Api-Key'] = _removeBgApiKey;
-    request.files.add(
-      await http.MultipartFile.fromPath('image_file', imageFile.path),
-    );
-    final response = await request.send();
-    if (response.statusCode == 200) {
-      final imageBytes = await response.stream.toBytes();
-      return await imageFile.writeAsBytes(imageBytes);
-    } else {
-      debugPrint(
-        'Error de Remove.bg: ${await response.stream.bytesToString()}',
-      );
-      throw Exception('Error al quitar el fondo de la imagen.');
-    }
   }
 
   Future<void> _submitForm() async {
