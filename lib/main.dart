@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:armario_virtual/widgets/auth_gate.dart';
-import 'package:armario_virtual/theme/app_theme.dart';
+import 'package:armario_virtual/config/app_theme.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
 Future<void> main() async {

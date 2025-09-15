@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:armario_virtual/theme/app_theme.dart';
+import 'package:armario_virtual/config/app_theme.dart';
 import 'package:armario_virtual/utils/color_namer.dart';
 import 'package:translator/translator.dart';
 import 'package:cloud_functions/cloud_functions.dart';

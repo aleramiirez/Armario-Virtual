@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:armario_virtual/screens/registration/registration_screen.dart';
-import 'package:armario_virtual/services/auth_services.dart';
+import 'package:armario_virtual/services/auth_service.dart';
 
+/// El formulario de login.
+/// 
+/// Es un widget [StatefulWidget] porque necesita gestionar estados que cambian:
+/// - Lo que el usuario escribe en los campos.
+/// - Si la contraseña es visible o no.
+/// - Si se está procesando una petición (`_isLoading`).
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
 
@@ -12,14 +17,22 @@ class LoginForm extends StatefulWidget {
 }
 
 class _LoginFormState extends State<LoginForm> {
+  /// Clave global para identificar y validar el formulario.
   final _formKey = GlobalKey<FormState>();
+
+  /// Controladores para leer el contenido de los campos de texto.
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  /// Variables de estado para la UI.
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
+  /// Instancia del servicio de autenticación para delegar la lógica.
   final AuthService _authService = AuthService();
 
+  /// Limpiamos los controladores cuando el widget se destruye para 
+  /// liberar memoria.
   @override
   void dispose() {
     _emailController.dispose();
@@ -27,7 +40,9 @@ class _LoginFormState extends State<LoginForm> {
     super.dispose();
   }
 
+  /// Gestiona el envío del formulario de email/contraseña.
   Future<void> _submitForm() async {
+    // Valida que los campos cumplan las reglas.
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) return;
 
@@ -36,11 +51,14 @@ class _LoginFormState extends State<LoginForm> {
     });
 
     try {
+      // Delega la lógica de inicio de sesión al servicio.
       await _authService.signInWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+      // Si el login es exitoso, AuthGate se encargará de la navegación.
     } on FirebaseAuthException catch (e) {
+      // Maneja errores específicos de autenticación y los muestra al usuario.
       String errorMessage = 'Ocurrió un error';
       if (e.code == 'user-not-found' ||
           e.code == 'wrong-password' ||
@@ -62,6 +80,7 @@ class _LoginFormState extends State<LoginForm> {
         );
       }
     } finally {
+      // Se asegura de que el estado de carga siempre se desactive al final.
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -70,13 +89,16 @@ class _LoginFormState extends State<LoginForm> {
     }
   }
 
+  /// Gestiona el inicio de sesión con Google.
   Future<void> _signInWithGoogle() async {
     setState(() {
       _isLoading = true;
     });
     try {
+      // Delega la lógica de Google al servicio.
       await _authService.signInWithGoogle();
     } catch (error) {
+      // Maneja cualquier error y lo muestra al usuario.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
