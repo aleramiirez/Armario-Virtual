@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "206327220012-ef4a4cvdaqlerl2ksethjr9h9nd2t50j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.armario_virtual",
+            "certificate_hash": "c6e1bbbbbbb0ab49160a88a177d1e6bd38c140c9"
+          }
+        },
+        {
           "client_id": "206327220012-oc7a6sniisp7cres613n5r994md4mmeu.apps.googleusercontent.com",
           "client_type": 3
         }

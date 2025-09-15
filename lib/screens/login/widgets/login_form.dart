@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:armario_virtual/screens/registration/registration_screen.dart';
+import 'package:armario_virtual/services/auth_services.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -16,6 +17,8 @@ class _LoginFormState extends State<LoginForm> {
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+
+  final AuthService _authService = AuthService();
 
   @override
   void dispose() {
@@ -33,21 +36,16 @@ class _LoginFormState extends State<LoginForm> {
     });
 
     try {
-      final email = _emailController.text;
-      final password = _passwordController.text;
-
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+      await _authService.signInWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Ocurrió un error';
-      if (e.code == 'user-not-found') {
-        errorMessage = 'No se encontró un usuario con ese correo.';
-      } else if (e.code == 'wrong-password') {
-        errorMessage = 'La contraseña es incorrecta.';
-      } else if (e.code == 'invalid-credential' || e.code == 'invalid-email') {
-        errorMessage = 'Las credenciales no son válidas.';
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        errorMessage = 'Correo o contraseña incorrectos.';
       }
 
       if (mounted) {
@@ -55,20 +53,6 @@ class _LoginFormState extends State<LoginForm> {
           SnackBar(
             content: Text(errorMessage),
             backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Ocurrió un error inesperado.'),
-            backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -91,20 +75,7 @@ class _LoginFormState extends State<LoginForm> {
       _isLoading = true;
     });
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      await _authService.signInWithGoogle();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -144,7 +115,6 @@ class _LoginFormState extends State<LoginForm> {
             decoration: const InputDecoration(
               labelText: 'Correo Electrónico',
               prefixIcon: Icon(Icons.email_outlined),
-              border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
@@ -161,16 +131,12 @@ class _LoginFormState extends State<LoginForm> {
             decoration: InputDecoration(
               labelText: 'Contraseña',
               prefixIcon: const Icon(Icons.lock_outline),
-              border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(
                   _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isPasswordVisible = !_isPasswordVisible;
-                  });
-                },
+                onPressed: () =>
+                    setState(() => _isPasswordVisible = !_isPasswordVisible),
               ),
             ),
             validator: (value) {
@@ -184,25 +150,27 @@ class _LoginFormState extends State<LoginForm> {
           ElevatedButton(
             onPressed: _isLoading ? null : _submitForm,
             child: _isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('INICIAR SESIÓN', style: TextStyle(fontSize: 16)),
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                : const Text('INICIAR SESIÓN'),
           ),
           const SizedBox(height: 15),
           Row(
-            mainAxisAlignment:
-                MainAxisAlignment.center, // Centra el contenido de la fila
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton.icon(
-                icon: Image.asset('assets/google.png', height: 22.0),
+                icon: Image.asset('assets/google_logo.png', height: 22.0),
                 label: const Text('Continuar con Google'),
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.black,
                   backgroundColor: Colors.white,
                   side: const BorderSide(color: Colors.grey),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 20,
-                  ),
                 ),
                 onPressed: _isLoading ? null : _signInWithGoogle,
               ),
@@ -211,7 +179,8 @@ class _LoginFormState extends State<LoginForm> {
           const SizedBox(height: 15),
           TextButton(
             onPressed: () {
-              Navigator.of(context).push(
+              Navigator.push(
+                context,
                 MaterialPageRoute(builder: (ctx) => const RegistrationScreen()),
               );
             },

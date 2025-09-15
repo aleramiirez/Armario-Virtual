@@ -280,8 +280,8 @@ class _LiveGarmentTagsEditor extends StatefulWidget {
 }
 
 class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
-  List<String> _displayTags = [];
-  bool _isLoadingTags = false;
+  late List<String> _tags;
+  bool _isLoadingAi = false;
   final _tagController = TextEditingController();
 
   final Map<String, String> _customTranslations = {
@@ -291,7 +291,7 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
   @override
   void initState() {
     super.initState();
-    _processAndSetTags();
+    _tags = widget.initialTags;
   }
 
   @override
@@ -300,58 +300,24 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
     super.dispose();
   }
 
-  Future<void> _processAndSetTags() async {
-    setStateIfMounted(() => _isLoadingTags = true);
-    final translator = GoogleTranslator();
-
-    final manualTags = List<String>.from(widget.garmentData['tags'] ?? []);
-    final aiLabels = List<String>.from(widget.garmentData['aiLabels'] ?? []);
-    final aiColors = List<String>.from(widget.garmentData['aiColors'] ?? []);
-
-    List<String> translatedLabels = [];
-    if (aiLabels.isNotEmpty) {
-      for (final label in aiLabels) {
-        try {
-          final translation = await translator.translate(
-            label,
-            from: 'en',
-            to: 'es',
-          );
-          String translatedText = translation.text.toLowerCase();
-          if (_customTranslations.containsKey(translatedText)) {
-            translatedText = _customTranslations[translatedText]!;
-          }
-          translatedLabels.add(translatedText);
-        } catch (e) {
-          translatedLabels.add(label);
-        }
-      }
-    }
-
-    final colorNames = aiColors
-        .map(ColorNamer.getClosestColorName)
-        .toSet()
-        .toList();
-
-    setStateIfMounted(() {
-      _displayTags = {
-        ...manualTags,
-        ...translatedLabels,
-        ...colorNames,
-      }.toList();
-      _isLoadingTags = false;
-    });
-  }
-
   Future<void> _addTag(String tag) async {
-    final trimmedTag = tag.trim().toLowerCase();
-    final existingTagsLower = (widget.garmentData['tags'] ?? [])
-        .map((t) => t.toLowerCase())
-        .toList();
-    if (trimmedTag.isEmpty || existingTagsLower.contains(trimmedTag)) {
+    // 1. Normaliza la nueva etiqueta a minúsculas
+    final newTag = tag.trim().toLowerCase();
+
+    // 2. Crea una lista temporal de las etiquetas existentes, también en minúsculas
+    final existingTagsLower = _tags.map((t) => t.toLowerCase()).toList();
+
+    // 3. Comprueba si la etiqueta está vacía o si ya existe (sin distinguir mayúsculas)
+    if (newTag.isEmpty || existingTagsLower.contains(newTag)) {
       _tagController.clear();
-      return;
+      return; // Si ya existe, no hacemos nada
     }
+
+    // 4. Añade la etiqueta a la UI y a Firebase (siempre en minúsculas para consistencia)
+    setState(() {
+      _tags.add(newTag);
+    });
+    _tagController.clear();
 
     final user = FirebaseAuth.instance.currentUser!;
     final garmentRef = FirebaseFirestore.instance
@@ -360,31 +326,23 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
         .collection('garments')
         .doc(widget.garmentId);
     await garmentRef.update({
-      'tags': FieldValue.arrayUnion([trimmedTag]),
+      'tags': FieldValue.arrayUnion([newTag]),
     });
-
-    setState(() {
-      (widget.garmentData['tags'] as List).add(trimmedTag);
-      _processAndSetTags();
-    });
-    _tagController.clear();
   }
 
   Future<void> _deleteTag(String tag) async {
+    setState(() {
+      _tags.remove(tag);
+    });
+
     final user = FirebaseAuth.instance.currentUser!;
     final garmentRef = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .collection('garments')
         .doc(widget.garmentId);
-
     await garmentRef.update({
       'tags': FieldValue.arrayRemove([tag]),
-    });
-
-    setState(() {
-      (widget.garmentData['tags'] as List).remove(tag);
-      _processAndSetTags();
     });
   }
 
@@ -416,7 +374,9 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
   }
 
   Future<void> _fetchAiTags() async {
-    setStateIfMounted(() => _isLoadingTags = true);
+    setState(() {
+      _isLoadingAi = true;
+    });
     try {
       final callable = FirebaseFunctions.instanceFor(
         region: 'europe-west1',
@@ -425,21 +385,56 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
         'garmentId': widget.garmentId,
       });
 
-      final newAiLabels = List<String>.from(results.data['aiLabels'] ?? []);
-      final newAiColors = List<String>.from(results.data['aiColors'] ?? []);
+      final translator = GoogleTranslator();
+      final aiLabels = List<String>.from(results.data['aiLabels'] ?? []);
+      final aiColors = List<String>.from(results.data['aiColors'] ?? []);
 
-      setStateIfMounted(() {
-        widget.garmentData['aiLabels'] = {
-          ...List<String>.from(widget.garmentData['aiLabels'] ?? []),
-          ...newAiLabels,
-        }.toList();
-        widget.garmentData['aiColors'] = {
-          ...List<String>.from(widget.garmentData['aiColors'] ?? []),
-          ...newAiColors,
-        }.toList();
-      });
+      List<String> processedAiTags = [];
+      for (final label in aiLabels) {
+        final translation = await translator.translate(
+          label,
+          from: 'en',
+          to: 'es',
+        );
+        String translatedText = translation.text.toLowerCase();
 
-      await _processAndSetTags();
+        if (_customTranslations.containsKey(translatedText)) {
+          translatedText = _customTranslations[translatedText]!;
+        }
+
+        processedAiTags.add(translatedText);
+      }
+      processedAiTags.addAll(
+        aiColors.map(
+          (colorHex) => ColorNamer.getClosestColorName(colorHex).toLowerCase(),
+        ),
+      ); // Convertir color a minúsculas
+
+      // --- CAMBIO CLAVE 1: Normalizar tus etiquetas _tags existentes a minúsculas para la comparación ---
+      final existingTagsLower = _tags
+          .map((t) => t.toLowerCase())
+          .toSet(); // Usar un Set para eficiencia
+
+      // --- CAMBIO CLAVE 2: Filtrar las etiquetas de IA que no estén ya en la lista existente (sin distinguir mayúsculas) ---
+      final uniqueNewTags = processedAiTags
+          .where(
+            (tag) => !existingTagsLower.contains(tag),
+          ) // Compara con la lista normalizada
+          .toList();
+
+      if (uniqueNewTags.isNotEmpty) {
+        final user = FirebaseAuth.instance.currentUser!;
+        final garmentRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('garments')
+            .doc(widget.garmentId);
+        await garmentRef.update({'tags': FieldValue.arrayUnion(uniqueNewTags)});
+
+        setState(() {
+          _tags.addAll(uniqueNewTags);
+        });
+      }
     } on FirebaseFunctionsException catch (e) {
       if (mounted)
         ScaffoldMessenger.of(
@@ -452,36 +447,15 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
         );
     } finally {
       if (mounted) {
-        setStateIfMounted(() => _isLoadingTags = false);
+        setState(() {
+          _isLoadingAi = false;
+        });
       }
     }
   }
 
-  void setStateIfMounted(f) {
-    if (mounted) setState(f);
-  }
-
-  @override
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingTags) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 10),
-              Text('Procesando etiquetas...'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final manualTags = List<String>.from(widget.garmentData['tags'] ?? []);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -489,14 +463,21 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Etiquetas', style: Theme.of(context).textTheme.titleMedium),
-            IconButton(
-              icon: Icon(
-                Icons.auto_awesome,
-                color: Theme.of(context).colorScheme.primary,
+            if (_isLoadingAi)
+              const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              IconButton(
+                icon: Icon(
+                  Icons.auto_awesome,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                tooltip: 'Generar etiquetas con IA',
+                onPressed: _fetchAiTags,
               ),
-              tooltip: 'Generar etiquetas con IA',
-              onPressed: _fetchAiTags,
-            ),
           ],
         ),
         const SizedBox(height: 10),
@@ -505,13 +486,8 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
           runSpacing: 4.0,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            ..._displayTags.map(
-              (tag) => Chip(
-                label: Text(tag),
-                onDeleted: manualTags.contains(tag)
-                    ? () => _deleteTag(tag)
-                    : null,
-              ),
+            ..._tags.map(
+              (tag) => Chip(label: Text(tag), onDeleted: () => _deleteTag(tag)),
             ),
             InkWell(
               onTap: _showAddTagDialog,
