@@ -57,7 +57,11 @@ class AppTheme {
       fillColor: colorSuperficie,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1.0),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: colorPrimario, width: 2.0),
       ),
       prefixIconColor: colorTextoPrincipal,
     ),
