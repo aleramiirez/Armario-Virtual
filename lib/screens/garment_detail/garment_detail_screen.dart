@@ -4,9 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:armariovirtual/config/app_theme.dart';
 import 'package:armariovirtual/utils/color_namer.dart';
+import 'package:armariovirtual/utils/app_alerts.dart';
 import 'package:translator/translator.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 // --- WIDGET PRINCIPAL (GESTOR DE ESTADO GENERAL) ---
 class GarmentDetailScreen extends StatefulWidget {
@@ -78,32 +80,15 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
           .delete();
 
       if (mounted) {
-        final messenger = ScaffoldMessenger.of(context);
         Navigator.of(context).pop();
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('Prenda eliminada con éxito'),
-            backgroundColor: AppTheme.colorExito,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
-        );
+        AppAlerts.showFloatingSnackBar(context, 'Prenda eliminada con éxito');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al eliminar la prenda: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Error al eliminar la prenda',
+          isError: true,
         );
       }
     } finally {
@@ -134,7 +119,13 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
         _nameController.text = newName.trim();
       });
     } catch (e) {
-      // Manejar error si es necesario
+      if (mounted) {
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Error al guardar el nombre',
+          isError: true,
+        );
+      }
     }
   }
 
@@ -148,9 +139,7 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
       final allTags = {...manualTags, ...aiLabels}.toList();
 
       if (allTags.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No hay etiquetas para buscar.')),
-        );
+        AppAlerts.showFloatingSnackBar(context, 'No hay etiquetas para buscar');
         setState(() {
           _isLoading = false;
         });
@@ -175,14 +164,18 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
       }
     } on FirebaseFunctionsException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de búsqueda: ${e.message}')),
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Error de búsqueda',
+          isError: true,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ha ocurrido un error inesperado.')),
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Ha ocurrido un error inesperado',
+          isError: true,
         );
       }
     } finally {
@@ -244,7 +237,19 @@ class _GarmentDetailView extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(15),
-              child: Image.network(garmentData['imageUrl']),
+              child: CachedNetworkImage(
+                imageUrl: garmentData['imageUrl'],
+                fit: BoxFit.cover,
+                placeholder: (context, url) => const AspectRatio(
+                  aspectRatio:
+                      1.0,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => const AspectRatio(
+                  aspectRatio: 1.0,
+                  child: Icon(Icons.error),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             _GarmentNameDisplay(
@@ -442,14 +447,14 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
       }
     } on FirebaseFunctionsException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error de IA: ${e.message}')));
+        AppAlerts.showFloatingSnackBar(context, 'Error de IA', isError: true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ha ocurrido un error inesperado.')),
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Ha ocurrido un error inesperado',
+          isError: true,
         );
       }
     } finally {

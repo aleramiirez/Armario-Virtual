@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:armariovirtual/config/app_theme.dart';
 import 'package:armariovirtual/services/garment_service.dart';
+import 'package:armariovirtual/utils/app_alerts.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -160,10 +161,10 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al obtener la imagen: ${e.toString()}'),
-          ),
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Error al obtener la imagen',
+          isError: true,
         );
       }
     } finally {
@@ -193,10 +194,10 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al procesar la imagen: ${e.toString()}'),
-          ),
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Error al procesar la imagen',
+          isError: true,
         );
       }
     } finally {
@@ -213,13 +214,10 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
   Future<void> _submitForm() async {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid || _selectedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Por favor, completa el nombre y selecciona una imagen.',
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      AppAlerts.showFloatingSnackBar(
+        context,
+        'Por favor, completa el nombre y selecciona una imagen',
+        isError: true,
       );
       return;
     }
@@ -237,20 +235,14 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Prenda guardada con éxito.'),
-            backgroundColor: AppTheme.colorExito,
-          ),
-        );
+        AppAlerts.showFloatingSnackBar(context, 'Prenda guardada con éxito');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar la prenda: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Error al guardar la prenda',
+          isError: true,
         );
       }
     } finally {

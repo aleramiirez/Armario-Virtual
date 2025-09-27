@@ -20,7 +20,7 @@ options.set_global_options(region="europe-west1")
 WORDS_TO_EXCLUDE = {
     "textile", "fabric", "material", "product", "sleeve", "pattern",
     "design", "clothing", "outerwear", "fashion", "style", "font", "logo",
-    "fashion design",
+    "fashion design", "nozzle",
 }
 
 # --- FUNCIÓN PARA OBTENER ETIQUETAS DE IA ---

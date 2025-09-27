@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:armariovirtual/screens/registration/registration_screen.dart';
 import 'package:armariovirtual/services/auth_service.dart';
+import 'package:armariovirtual/utils/app_alerts.dart';
 
 /// El formulario de login.
 ///
@@ -67,17 +68,7 @@ class _LoginFormState extends State<LoginForm> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
-        );
+        AppAlerts.showFloatingSnackBar(context, errorMessage, isError: true);
       }
     } finally {
       // Se asegura de que el estado de carga siempre se desactive al final.
@@ -100,18 +91,10 @@ class _LoginFormState extends State<LoginForm> {
     } catch (error) {
       // Maneja cualquier error y lo muestra al usuario.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error al iniciar sesión con Google: ${error.toString()}',
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Error al iniciar sesión con Google',
+          isError: true,
         );
       }
     } finally {

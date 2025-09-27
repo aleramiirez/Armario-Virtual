@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Definimos todos los colores base aquí
-  static const Color colorPrimario = Color(0xFFA084E8);
+  static const Color colorPrimario = Color.fromARGB(255, 232, 215, 132);
   static const Color colorFondo = Color(0xFFF5F5F5);
   static const Color colorSuperficie = Color(0xFFFFFFFF);
   static const Color colorTextoPrincipal = Color(0xFF333333);
@@ -30,13 +30,15 @@ class AppTheme {
     textTheme: GoogleFonts.poppinsTextTheme(),
 
     chipTheme: ChipThemeData(
-      backgroundColor: Colors.white,
-      side: BorderSide(color: Colors.grey.shade300),
-      labelStyle: TextStyle(
+      backgroundColor: colorPrimario.withOpacity(0.15),
+      side: BorderSide.none,
+      labelStyle: const TextStyle(
         color: colorTextoPrincipal,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600, 
       ),
-      deleteIconColor: colorTextoSecundario,
+      deleteIconColor: colorTextoPrincipal,
+      elevation: 0,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     ),
 
     // 3. Estilos de Widgets
@@ -84,6 +86,7 @@ class AppTheme {
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       surfaceTintColor: colorSuperficie,
+      color: colorSuperficie,
     ),
 
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
