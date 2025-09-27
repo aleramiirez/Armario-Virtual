@@ -34,7 +34,7 @@ class AppTheme {
       side: BorderSide.none,
       labelStyle: const TextStyle(
         color: colorTextoPrincipal,
-        fontWeight: FontWeight.w600, 
+        fontWeight: FontWeight.w600,
       ),
       deleteIconColor: colorTextoPrincipal,
       elevation: 0,
@@ -43,7 +43,7 @@ class AppTheme {
 
     // 3. Estilos de Widgets
     appBarTheme: const AppBarTheme(
-      backgroundColor: colorSuperficie,
+      backgroundColor: colorPrimario,
       foregroundColor: colorTextoPrincipal,
       elevation: 1,
       centerTitle: true,

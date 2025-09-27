@@ -11,14 +11,9 @@ class AddGarmentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Añadir Nueva Prenda'),
-      ),
+      appBar: AppBar(title: const Text('Añadir Nueva Prenda')),
       body: const SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(20.0),
-          child: AddGarmentForm(),
-        ),
+        child: Padding(padding: EdgeInsets.all(20.0), child: AddGarmentForm()),
       ),
     );
   }

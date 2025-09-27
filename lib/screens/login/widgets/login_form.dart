@@ -170,7 +170,7 @@ class _LoginFormState extends State<LoginForm> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton.icon(
-                icon: Image.asset('assets/google.png', height: 22.0),
+                icon: Image.asset('assets/images/google.png', height: 22.0),
                 label: const Text('Continuar con Google'),
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.black,

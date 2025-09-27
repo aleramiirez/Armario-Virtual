@@ -95,7 +95,7 @@ def find_similar_products(req: https_fn.Request) -> https_fn.Response:
     if not tags:
         raise https_fn.HttpsError(code="invalid-argument", message="Faltan las etiquetas.")
 
-    search_engine_id = "AQUÍ_VA_TU_ID_DE_MOTOR_DE_BÚSQUEDA"
+    search_engine_id = "a4ef255231839499a"
     api_key_value = os.environ.get("CUSTOM_SEARCH_API_KEY") 
 
     query = " ".join(tags[:5])

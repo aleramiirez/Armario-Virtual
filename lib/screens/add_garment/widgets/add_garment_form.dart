@@ -51,14 +51,20 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
               Navigator.of(ctx).pop();
               _pickImageFromGallery();
             },
-            child: const Text('Desde Galería'),
+            child: const Text(
+              'Desde Galería',
+              style: TextStyle(color: AppTheme.colorTextoPrincipal),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
               _pickImageFromUrl();
             },
-            child: const Text('Desde URL (Recomendado)'),
+            child: const Text(
+              'Desde URL (Recomendado)',
+              style: TextStyle(color: AppTheme.colorTextoPrincipal),
+            ),
           ),
         ],
       ),
