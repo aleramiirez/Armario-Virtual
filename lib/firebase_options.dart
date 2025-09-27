@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDAZujQBEXU7t19Sut3-73M98kyKdCU1k8',
-    appId: '1:206327220012:android:356a2fe3abe45a4b444e89',
+    appId: '1:206327220012:android:cd8dc2c3265a963e444e89',
     messagingSenderId: '206327220012',
     projectId: 'armario-virtual-4c54d',
     storageBucket: 'armario-virtual-4c54d.firebasestorage.app',
@@ -60,11 +60,13 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDYqSyVZ3HZgz5Y-NUAqvQJG1mLjFoB0cI',
-    appId: '1:206327220012:ios:a9f5c5a4e53aa60d444e89',
+    appId: '1:206327220012:ios:b3089bb35571a5ef444e89',
     messagingSenderId: '206327220012',
     projectId: 'armario-virtual-4c54d',
     storageBucket: 'armario-virtual-4c54d.firebasestorage.app',
-    iosBundleId: 'com.example.armarioVirtual',
+    androidClientId: '206327220012-72d2n14osd7tuvnic0ni84u7e75tnne7.apps.googleusercontent.com',
+    iosClientId: '206327220012-s3kdh23kkm0d8qkgic74qasrmhlgfldd.apps.googleusercontent.com',
+    iosBundleId: 'com.aleramirez.armariovirtual',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +75,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '206327220012',
     projectId: 'armario-virtual-4c54d',
     storageBucket: 'armario-virtual-4c54d.firebasestorage.app',
-    iosBundleId: 'com.example.armarioVirtual',
+    iosBundleId: 'com.aleramirez.armariovirtual',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

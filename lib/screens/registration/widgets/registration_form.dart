@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:armario_virtual/services/auth_service.dart';
-import 'package:armario_virtual/config/app_theme.dart';
+import 'package:armariovirtual/services/auth_service.dart';
+import 'package:armariovirtual/config/app_theme.dart';
 
 /// Formulario de registro de nuevos usuarios.
 ///

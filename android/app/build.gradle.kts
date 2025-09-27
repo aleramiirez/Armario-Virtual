@@ -8,8 +8,28 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+dependencies {
+  // Import the Firebase BoM
+  implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+
+
+  // TODO: Add the dependencies for Firebase products you want to use
+  // When using the BoM, don't specify versions in Firebase dependencies
+  implementation("com.google.firebase:firebase-analytics")
+  
+  // Add the dependencies for the App Check libraries
+  // When using the BoM, you don't specify versions in Firebase library dependencies
+  implementation("com.google.firebase:firebase-appcheck-playintegrity")
+  
+  implementation("com.google.firebase:firebase-appcheck-debug")
+
+
+  // Add the dependencies for any other desired Firebase products
+  // https://firebase.google.com/docs/android/setup#available-libraries
+}
+
 android {
-    namespace = "com.example.armario_virtual"
+    namespace = "com.aleramirez.armariovirtual"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -24,7 +44,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.armario_virtual"
+        applicationId = "com.aleramirez.armariovirtual"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

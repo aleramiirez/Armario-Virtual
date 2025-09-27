@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:armario_virtual/screens/registration/registration_screen.dart';
-import 'package:armario_virtual/services/auth_service.dart';
+import 'package:armariovirtual/screens/registration/registration_screen.dart';
+import 'package:armariovirtual/services/auth_service.dart';
 
 /// El formulario de login.
-/// 
+///
 /// Es un widget [StatefulWidget] porque necesita gestionar estados que cambian:
 /// - Lo que el usuario escribe en los campos.
 /// - Si la contraseña es visible o no.
@@ -31,7 +31,7 @@ class _LoginFormState extends State<LoginForm> {
   /// Instancia del servicio de autenticación para delegar la lógica.
   final AuthService _authService = AuthService();
 
-  /// Limpiamos los controladores cuando el widget se destruye para 
+  /// Limpiamos los controladores cuando el widget se destruye para
   /// liberar memoria.
   @override
   void dispose() {

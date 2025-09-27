@@ -1,4 +1,4 @@
-# armario_virtual
+# armariovirtual
 
 A new Flutter project.
 

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:armario_virtual/config/app_theme.dart';
-import 'package:armario_virtual/utils/color_namer.dart';
+import 'package:armariovirtual/config/app_theme.dart';
+import 'package:armariovirtual/utils/color_namer.dart';
 import 'package:translator/translator.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -116,8 +116,10 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
   }
 
   Future<void> _saveNameChange(String newName) async {
-    if (newName.trim().isEmpty || newName.trim() == widget.garmentData['name'])
+    if (newName.trim().isEmpty ||
+        newName.trim() == widget.garmentData['name']) {
       return;
+    }
 
     try {
       final user = FirebaseAuth.instance.currentUser!;
@@ -172,15 +174,17 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
         );
       }
     } on FirebaseFunctionsException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error de búsqueda: ${e.message}')),
         );
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Ha ocurrido un error inesperado.')),
         );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -286,6 +290,7 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
 
   final Map<String, String> _customTranslations = {
     'camisa activa': 'camisa deportiva',
+    'pantalones cortos activos': 'pantalones cortos deportivos',
   };
 
   @override
@@ -436,15 +441,17 @@ class _LiveGarmentTagsEditorState extends State<_LiveGarmentTagsEditor> {
         });
       }
     } on FirebaseFunctionsException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error de IA: ${e.message}')));
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Ha ocurrido un error inesperado.')),
         );
+      }
     } finally {
       if (mounted) {
         setState(() {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:armario_virtual/screens/add_garment/add_garment_screen.dart';
+import 'package:armariovirtual/screens/add_garment/add_garment_screen.dart';
 import 'widgets/garment_grid.dart';
 
 /// Pantalla principal de la aplicación.
@@ -32,14 +32,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      // StreamBuilder se reconstruye automáticamente cada vez que hay un cambio 
+      // StreamBuilder se reconstruye automáticamente cada vez que hay un cambio
       // en la colección 'garments' de Firestore.
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .collection('garments')
-            .orderBy('createdAt', descending: true) // Muestra las prendas más nuevas primero.
+            .orderBy(
+              'createdAt',
+              descending: true,
+            ) // Muestra las prendas más nuevas primero.
             .snapshots(),
         builder: (context, snapshot) {
           // Muestra un indicador de carga mientras se obtienen los datos.
@@ -59,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          // Si hay datos, delega la construcción de la 
+          // Si hay datos, delega la construcción de la
           // cuadrícula al widget [GarmentGrid].
           return GarmentGrid(garments: snapshot.data!.docs);
         },

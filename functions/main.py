@@ -1,11 +1,19 @@
+# main.py - VERSIÓN FINAL Y LIMPIA
+
+import os
 from firebase_functions import https_fn, options
+import firebase_admin
 from firebase_admin import initialize_app, firestore
 from google.cloud import vision
+from googleapiclient.discovery import build
 import logging
 import requests
+import base64
 
-# Inicializa Firebase
-initialize_app()
+# --- INICIALIZACIÓN DE FIREBASE (FORMA SEGURA) ---
+if not firebase_admin._apps:
+    initialize_app()
+    
 options.set_global_options(region="europe-west1")
 
 # --- LISTA DE PALABRAS A EXCLUIR ---
@@ -88,13 +96,13 @@ def find_similar_products(req: https_fn.Request) -> https_fn.Response:
         raise https_fn.HttpsError(code="invalid-argument", message="Faltan las etiquetas.")
 
     search_engine_id = "AQUÍ_VA_TU_ID_DE_MOTOR_DE_BÚSQUEDA"
-    api_key = options.SECRET_MANAGER.get("CUSTOM_SEARCH_API_KEY")
+    api_key_value = os.environ.get("CUSTOM_SEARCH_API_KEY") 
 
     query = " ".join(tags[:5])
     logging.info(f"Buscando productos para la consulta: '{query}'")
 
     try:
-        service = build("customsearch", "v1", developerKey=api_key)
+        service = build("customsearch", "v1", developerKey=api_key_value)
         result = (
             service.cse()
             .list(
@@ -123,22 +131,30 @@ def find_similar_products(req: https_fn.Request) -> https_fn.Response:
 # --- FUNCIÓN PARA QUITAR EL FONDO DE IMAGEN ---
 @https_fn.on_call(secrets=["REMOVE_BG_API_KEY"])
 def remove_background_from_image(req: https_fn.Request) -> https_fn.Response:
-    image_bytes = req.data.get("imageBytes")
-    if not image_bytes:
-        raise https_fn.HttpsError(code="invalid-argument", message="Faltan los bytes de la imagen.")
+    image_base64 = req.data.get("imageBase64")
+    if not image_base64:
+        raise https_fn.HttpsError(code="invalid-argument", message="Falta el string Base64 de la imagen.")
 
-    api_key = options.SECRET_MANAGER.get("REMOVE_BG_API_KEY")
+    try:
+        image_bytes = base64.b64decode(image_base64)
+    except Exception as e:
+        logging.error(f"Error al decodificar Base64: {e}")
+        raise https_fn.HttpsError(code="invalid-argument", message="El string Base64 no es válido.")
+
+    api_key_value = os.environ.get("REMOVE_BG_API_KEY")
 
     try:
         response = requests.post(
             "https://api.remove.bg/v1.0/removebg",
             files={"image_file": image_bytes},
             data={"size": "auto"},
-            headers={"X-Api-Key": api_key},
+            headers={"X-Api-Key": api_key_value},
         )
         response.raise_for_status()
         
-        return {"imageBytes": response.content}
+        processed_base64 = base64.b64encode(response.content).decode('utf-8')
+        
+        return {"imageBase64": processed_base64}
         
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al llamar a la API de remove.bg: {e}")

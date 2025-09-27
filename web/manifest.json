@@ -1,6 +1,6 @@
 {
-    "name": "armario_virtual",
-    "short_name": "armario_virtual",
+    "name": "armariovirtual",
+    "short_name": "armariovirtual",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

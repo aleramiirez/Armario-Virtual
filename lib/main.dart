@@ -1,19 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'package:armario_virtual/widgets/auth_gate.dart';
-import 'package:armario_virtual/config/app_theme.dart';
+import 'package:armariovirtual/widgets/auth_gate.dart';
+import 'package:armariovirtual/config/app_theme.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp();
 
   await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.playIntegrity,
-    appleProvider: AppleProvider.appAttest,
+    androidProvider: kDebugMode
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity,
   );
 
   runApp(const MyApp());

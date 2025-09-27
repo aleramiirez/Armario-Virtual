@@ -1,27 +1,17 @@
+import 'dart:async';
 import 'dart:io';
-import 'package:armario_virtual/config/app_theme.dart';
-import 'package:flutter/foundation.dart';
+import 'package:armariovirtual/config/app_theme.dart';
+import 'package:armariovirtual/services/garment_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'dart:typed_data';
-import 'package:image/image.dart' as img;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:image_cropper/image_cropper.dart';
 
-Future<Map<String, dynamic>> _decodeImage(String imagePath) async {
-  final imageBytes = await File(imagePath).readAsBytes();
-  final image = img.decodeImage(imageBytes);
-  if (image == null) {
-    return {'file': File(imagePath), 'aspectRatio': 1.0};
-  }
-  return {'file': File(imagePath), 'aspectRatio': image.width / image.height};
-}
-
+/// El formulario completo para añadir una nueva prenda.
+///
+/// Es un [StatefulWidget] que gestiona la selección de imagen (galería/URL),
+/// el recorte, y delega la lógica de guardado a un [GarmentService].
 class AddGarmentForm extends StatefulWidget {
   const AddGarmentForm({super.key});
 
@@ -32,6 +22,10 @@ class AddGarmentForm extends StatefulWidget {
 class _AddGarmentFormState extends State<AddGarmentForm> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+
+  // Instancia de nuestro servicio. Toda la lógica de backend está aquí.
+  final GarmentService _garmentService = GarmentService();
+
   File? _selectedImage;
   double? _imageAspectRatio;
   bool _isLoading = false;
@@ -43,6 +37,7 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
     super.dispose();
   }
 
+  /// Muestra un diálogo para que el usuario elija la fuente de la imagen.
   Future<void> _showImageSourceDialog() async {
     showDialog(
       context: context,
@@ -62,13 +57,14 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
               Navigator.of(ctx).pop();
               _pickImageFromUrl();
             },
-            child: const Text('Desde URL'),
+            child: const Text('Desde URL (Recomendado)'),
           ),
         ],
       ),
     );
   }
 
+  /// Abre la galería del dispositivo para seleccionar una imagen.
   Future<void> _pickImageFromGallery() async {
     final imagePicker = ImagePicker();
     final pickedImage = await imagePicker.pickImage(
@@ -76,25 +72,20 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       imageQuality: 80,
     );
     if (pickedImage == null) return;
-
-    // Llama a la nueva función de recorte
     _cropImage(pickedImage.path);
   }
 
+  /// Abre la interfaz de recorte de imagen.
   Future<void> _cropImage(String imagePath) async {
     final croppedFile = await ImageCropper().cropImage(
       sourcePath: imagePath,
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Recortar Imagen',
-          toolbarColor:
-              AppTheme.colorPrimario, // Color de la barra superior del recorte
-          toolbarWidgetColor:
-              Colors.white, // Color de los iconos (incluye el tick)
-          statusBarColor: AppTheme
-              .colorPrimario, // Color de la barra de estado del teléfono durante el recorte
-          activeControlsWidgetColor: AppTheme
-              .colorPrimario, // Color de las líneas de recorte y de los botones activos
+          toolbarColor: AppTheme.colorPrimario,
+          toolbarWidgetColor: Colors.white,
+          statusBarColor: AppTheme.colorPrimario,
+          activeControlsWidgetColor: AppTheme.colorPrimario,
           initAspectRatio: CropAspectRatioPreset.square,
           lockAspectRatio: false,
           aspectRatioPresets: [
@@ -108,7 +99,6 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
         IOSUiSettings(
           title: 'Recortar Imagen',
           aspectRatioLockEnabled: false,
-          // Y también aquí para iOS
           aspectRatioPresets: [
             CropAspectRatioPreset.square,
             CropAspectRatioPreset.ratio3x2,
@@ -119,14 +109,11 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
         ),
       ],
     );
-
     if (croppedFile == null) return;
-
     _processImage(croppedFile.path);
   }
 
-  // En _AddGarmentFormState dentro de add_garment_form.dart
-
+  /// Muestra un diálogo para que el usuario pegue una URL de imagen.
   Future<void> _pickImageFromUrl() async {
     final urlController = TextEditingController();
     final url = await showDialog<String>(
@@ -165,8 +152,6 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
             '${tempDir.path}/${DateTime.now().toIso8601String()}.jpg';
         final file = File(tempPath);
         await file.writeAsBytes(response.bodyBytes);
-
-        // --- AHORA LLAMAMOS A _cropImage TAMBIÉN AQUÍ ---
         await _cropImage(tempPath);
       } else {
         throw Exception(
@@ -174,118 +159,100 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al obtener la imagen: ${e.toString()}'),
           ),
         );
+      }
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
           _loadingMessage = '';
         });
+      }
     }
   }
 
+  /// Procesa la imagen seleccionada para mostrarla en la UI.
+  /// Ahora solo se preocupa de obtener el aspect ratio para la vista.
   Future<void> _processImage(String imagePath) async {
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Procesando imagen...';
     });
     try {
-      final imageDetails = await compute(_decodeImage, imagePath);
-      setState(() {
-        _selectedImage = imageDetails['file'] as File;
-        _imageAspectRatio = imageDetails['aspectRatio'] as double;
-      });
+      final aspectRatio = await _garmentService.getImageAspectRatio(imagePath);
+      if (mounted) {
+        setState(() {
+          _selectedImage = File(imagePath);
+          _imageAspectRatio = aspectRatio;
+        });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al procesar la imagen: ${e.toString()}'),
           ),
         );
+      }
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
           _loadingMessage = '';
         });
+      }
     }
   }
 
-  Future<File?> _removeBackground(File imageFile) async {
-    // 1. Lee la imagen como bytes
-    final imageBytes = await imageFile.readAsBytes();
-
-    // 2. Llama a la Cloud Function que creamos para esto
-    final callable = FirebaseFunctions.instanceFor(
-      region: 'europe-west1',
-    ).httpsCallable('remove_background_from_image');
-
-    final results = await callable.call<Map<String, dynamic>>({
-      'imageBytes': imageBytes,
-    });
-
-    // 3. Recibe la imagen sin fondo y la guarda en el archivo temporal
-    final processedImageBytes = results.data['imageBytes'] as List<int>;
-    return await imageFile.writeAsBytes(
-      Uint8List.fromList(processedImageBytes),
-    );
-  }
-
+  /// Orquesta el proceso de guardado llamando al servicio.
   Future<void> _submitForm() async {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid || _selectedImage == null) {
-      // ... (Mostrar SnackBar de error)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Por favor, completa el nombre y selecciona una imagen.',
+          ),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
       return;
     }
+
     setState(() {
       _isLoading = true;
-      _loadingMessage = 'Procesando imagen...';
+      _loadingMessage = 'Guardando prenda...';
     });
 
     try {
-      final imageWithoutBg = await _removeBackground(_selectedImage!);
-      if (imageWithoutBg == null) throw Exception('Error al quitar fondo');
-
-      final user = FirebaseAuth.instance.currentUser!;
-      // Usamos el ID del usuario y la fecha para un nombre de archivo único
-      final fileName = '${user.uid}_${DateTime.now().toIso8601String()}.png';
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('garment_images')
-          .child(user.uid)
-          .child(fileName);
-
-      await storageRef.putFile(imageWithoutBg);
-      final imageUrl = await storageRef.getDownloadURL();
-
-      // La lógica ahora es un simple '.add()'
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('garments')
-          .add({
-            'name': _nameController.text.trim(),
-            'imageUrl': imageUrl,
-            'createdAt': Timestamp.now(),
-            'tags': [], // Se crea una lista de etiquetas manuales vacía
-          });
+      await _garmentService.saveNewGarment(
+        garmentName: _nameController.text,
+        imageFile: _selectedImage!,
+      );
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Prenda guardada con éxito.'),
-            backgroundColor: AppTheme.colorExito /*...*/,
+            backgroundColor: AppTheme.colorExito,
           ),
         );
       }
-    } catch (error) {
-      // ... (manejo de errores)
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar la prenda: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -366,7 +333,7 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(
-                        height: 20, // Ajusta el tamaño según veas
+                        height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 3,
