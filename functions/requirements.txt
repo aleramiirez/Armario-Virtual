@@ -1,4 +1,7 @@
-firebase-functions
-firebase-admin
-google-cloud-vision
-google-api-python-client
+firebase-admin>=6.0.1
+firebase-functions>=0.2.0
+google-cloud-vision>=3.4.0
+google-api-python-client>=2.88.0
+requests>=2.31.0
+google-cloud-translate==3.11.2
+setuptools
