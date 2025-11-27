@@ -24,6 +24,7 @@ WORDS_TO_EXCLUDE_ES = {
     "diseño", "ropa", "prenda", "vestimenta", "moda", "estilo", "fuente",
     "logo", "logotipo", "diseño de moda", "boquilla", "calle", "ciudad",
     "fotografía", "instantánea", "pierna", "calzado", "pantalones cortos de tabla",
+    "sobretodo", "taladro", "plumero"
 }
 
 # --- FUNCIÓN PARA OBTENER ETIQUETAS DE IA ---

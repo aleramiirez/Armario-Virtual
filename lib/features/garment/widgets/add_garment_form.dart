@@ -26,6 +26,7 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
   bool _isLoading = false;
   String _loadingMessage = '';
   String? _selectedCategory;
+  bool _formSubmitted = false;
 
   @override
   void dispose() {
@@ -74,13 +75,8 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       imageQuality: 80,
     );
     if (pickedImage == null) return;
-    // --- CAMBIO ---
-    // Llama directamente a _processImage en lugar de _cropImage.
     await _processImage(pickedImage.path);
   }
-
-  // --- FUNCIÓN ELIMINADA ---
-  // El método _cropImage se ha eliminado por completo.
 
   /// Muestra un diálogo para que el usuario pegue una URL de imagen.
   Future<void> _pickImageFromUrl() async {
@@ -127,8 +123,6 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
             '${tempDir.path}/${DateTime.now().toIso8601String()}.jpg';
         final file = File(tempPath);
         await file.writeAsBytes(response.bodyBytes);
-        // --- CAMBIO ---
-        // Llama directamente a _processImage en lugar de _cropImage.
         await _processImage(tempPath);
       } else {
         throw Exception(
@@ -189,13 +183,15 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
 
   /// Orquesta el proceso de guardado llamando al servicio.
   Future<void> _submitForm() async {
+    setState(() {
+      _formSubmitted = true;
+    });
+
     final isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid || _selectedImage == null) {
-      AppAlerts.showFloatingSnackBar(
-        context,
-        'Por favor, completa el nombre y selecciona una imagen',
-        isError: true,
-      );
+    final isCategoryValid = _selectedCategory != null;
+
+    if (!isValid || !isCategoryValid || _selectedImage == null) {
+      // Los errores se mostrarán en cada campo individualmente
       return;
     }
 
@@ -214,7 +210,12 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        AppAlerts.showFloatingSnackBar(context, 'Prenda guardada con éxito');
+        AppAlerts.showFloatingSnackBar(
+          context,
+          'Prenda guardada con éxito',
+          // Margen para evitar el FAB y alinearse horizontalmente (izquierda: 20, derecha: 90, abajo: 20)
+          margin: const EdgeInsets.only(left: 20, right: 90, bottom: 20),
+        );
       }
     } catch (e) {
       debugPrint('Error en _submitForm: $e');
@@ -246,7 +247,11 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
             onTap: _isLoading ? null : _showImageSourceDialog,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(
+                  color: (_formSubmitted && _selectedImage == null)
+                      ? Theme.of(context).colorScheme.error
+                      : Colors.grey.shade300,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ClipRRect(
@@ -286,6 +291,17 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
               ),
             ),
           ),
+          if (_formSubmitted && _selectedImage == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+              child: Text(
+                'Por favor, añade una imagen.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           const SizedBox(height: 30),
           TextFormField(
             controller: _nameController,
@@ -301,20 +317,89 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
             },
           ),
           const SizedBox(height: 20),
-          DropdownButtonFormField<String>(
-            value: _selectedCategory,
-            decoration: const InputDecoration(
-              labelText: 'Categoría',
-              prefixIcon: Icon(Icons.category),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'top', child: Text('Parte Superior')),
-              DropdownMenuItem(value: 'bottom', child: Text('Parte Inferior')),
-              DropdownMenuItem(value: 'footwear', child: Text('Calzado')),
-            ],
-            onChanged: (value) => setState(() => _selectedCategory = value),
-            validator: (value) =>
-                value == null ? 'Por favor, selecciona una categoría.' : null,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return DropdownMenu<String>(
+                width: constraints.maxWidth,
+                initialSelection: _selectedCategory,
+                label: const Text('Categoría'),
+                leadingIcon: const Icon(Icons.category),
+                dropdownMenuEntries: [
+                  DropdownMenuEntry(
+                    value: 'top',
+                    label: 'Parte Superior',
+                    style: ButtonStyle(
+                      padding: MaterialStateProperty.all(EdgeInsets.zero),
+                    ),
+                    labelWidget: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 12.0,
+                            horizontal: 12.0,
+                          ),
+                          child: Text('Parte Superior'),
+                        ),
+                        Divider(
+                          height: 1,
+                          color: Colors.grey.shade300,
+                          indent: 6,
+                          endIndent: 12,
+                        ),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuEntry(
+                    value: 'bottom',
+                    label: 'Parte Inferior',
+                    style: ButtonStyle(
+                      padding: MaterialStateProperty.all(EdgeInsets.zero),
+                    ),
+                    labelWidget: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 12.0,
+                            horizontal: 12.0,
+                          ),
+                          child: Text('Parte Inferior'),
+                        ),
+                        Divider(
+                          height: 1,
+                          color: Colors.grey.shade300,
+                          indent: 6,
+                          endIndent: 12,
+                        ),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuEntry(
+                    value: 'footwear',
+                    label: 'Calzado',
+                    style: ButtonStyle(
+                      padding: MaterialStateProperty.all(EdgeInsets.zero),
+                    ),
+                    labelWidget: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: 12.0,
+                        horizontal: 12.0,
+                      ),
+                      child: Text('Calzado'),
+                    ),
+                  ),
+                ],
+                onSelected: (value) {
+                  setState(() {
+                    _selectedCategory = value;
+                  });
+                },
+                errorText: _formSubmitted && _selectedCategory == null
+                    ? 'Por favor, selecciona una categoría.'
+                    : null,
+              );
+            },
           ),
           const SizedBox(height: 20),
           ElevatedButton(

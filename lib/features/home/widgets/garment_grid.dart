@@ -71,8 +71,17 @@ class _GarmentCard extends StatelessWidget {
           Expanded(
             child: CachedNetworkImage(
               imageUrl: garmentData['imageUrl'],
-              fit: BoxFit.contain,
-              alignment: Alignment.center,
+              imageBuilder: (context, imageProvider) => Container(
+                width: double.infinity,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: imageProvider,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                  ),
+                ),
+              ),
               placeholder: (context, url) =>
                   const Center(child: CircularProgressIndicator()),
               errorWidget: (context, url, error) => const Icon(Icons.error),

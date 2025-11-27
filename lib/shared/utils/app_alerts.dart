@@ -12,6 +12,7 @@ class AppAlerts {
     BuildContext context,
     String message, {
     bool isError = false,
+    EdgeInsetsGeometry? margin,
   }) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -23,7 +24,9 @@ class AppAlerts {
         // Este es el estilo que querías, ahora centralizado
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        margin:
+            margin ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

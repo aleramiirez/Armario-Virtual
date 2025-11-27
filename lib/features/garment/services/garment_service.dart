@@ -30,6 +30,28 @@ Map<String, dynamic> _decodeImageIsolate(String imagePath) {
   return {'aspectRatio': image.width / image.height};
 }
 
+/// Recorta los bordes transparentes de una imagen en un isolate y añade un pequeño margen.
+List<int> _trimImageIsolate(Uint8List imageBytes) {
+  final image = img.decodeImage(imageBytes);
+  if (image == null) return imageBytes;
+
+  // 1. Recorta la imagen eliminando los bordes transparentes
+  final trimmed = img.trim(image, mode: img.TrimMode.transparent);
+
+  // 2. Añade un pequeño margen (padding) para que no quede pegada al borde
+  const int padding = 20;
+  final newWidth = trimmed.width + (padding * 2);
+  final newHeight = trimmed.height + (padding * 2);
+
+  // Crea una imagen nueva transparente (asegurando 4 canales para RGBA)
+  final padded = img.Image(width: newWidth, height: newHeight, numChannels: 4);
+
+  // Copia la imagen recortada en el centro (dstX, dstY)
+  img.compositeImage(padded, trimmed, dstX: padding, dstY: padding);
+
+  return img.encodePng(padded);
+}
+
 // --- Clase del Servicio ---
 
 /// Servicio que encapsula toda la lógica de backend para gestionar prendas.
@@ -127,11 +149,17 @@ class GarmentService {
         'imageBase64': imageBase64,
       });
 
-      // Decodificamos el resultado y lo escribimos de vuelta en el archivo
+      // Decodificamos el resultado
       final processedImageBase64 = results.data['imageBase64'] as String;
       final processedImageBytes = base64Decode(processedImageBase64);
 
-      return await imageFile.writeAsBytes(processedImageBytes);
+      // Recortamos los bordes transparentes
+      final trimmedBytes = await compute(
+        _trimImageIsolate,
+        processedImageBytes,
+      );
+
+      return await imageFile.writeAsBytes(trimmedBytes);
     } catch (e) {
       debugPrint('Error al quitar el fondo: $e');
       // Si falla, devolvemos la imagen redimensionada original

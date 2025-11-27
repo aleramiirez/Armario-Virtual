@@ -348,7 +348,7 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
 }
 
 // --- WIDGET DE LA VISTA (SOLO MUESTRA LA UI) ---
-class _GarmentDetailView extends StatelessWidget {
+class _GarmentDetailView extends StatefulWidget {
   final String garmentId;
   final Map<String, dynamic> garmentData;
   final Function(String newName) onNameSaved;
@@ -362,21 +362,61 @@ class _GarmentDetailView extends StatelessWidget {
   });
 
   @override
+  State<_GarmentDetailView> createState() => _GarmentDetailViewState();
+}
+
+class _GarmentDetailViewState extends State<_GarmentDetailView> {
+  Alignment _fabAlignment = Alignment.bottomRight;
+  bool _isDragging = false;
+  final GlobalKey _stackKey = GlobalKey();
+
+  void _snapToCorner() {
+    final double targetX = _fabAlignment.x >= 0 ? 1.0 : -1.0;
+    final double targetY = _fabAlignment.y >= 0 ? 1.0 : -1.0;
+    _fabAlignment = Alignment(targetX, targetY);
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    final RenderBox? renderBox =
+        _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final size = renderBox.size;
+
+    // Convertimos el delta de píxeles a unidades de alineación (-1 a 1)
+    final double dx = details.delta.dx / (size.width / 2);
+    final double dy = details.delta.dy / (size.height / 2);
+
+    setState(() {
+      _fabAlignment = Alignment(
+        (_fabAlignment.x + dx).clamp(-1.0, 1.0),
+        (_fabAlignment.y + dy).clamp(-1.0, 1.0),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      // Desactivamos el scroll si estamos arrastrando el botón
+      physics: _isDragging
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Stack(
-              alignment: Alignment.bottomRight,
+              key: _stackKey,
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(15),
                   child: CachedNetworkImage(
-                    imageUrl: garmentData['imageUrl'],
+                    imageUrl: widget.garmentData['imageUrl'],
+                    width: double.infinity,
                     fit: BoxFit.contain,
+                    alignment: Alignment.center,
                     placeholder: (context, url) => const AspectRatio(
                       aspectRatio: 1.0,
                       child: Center(child: CircularProgressIndicator()),
@@ -387,28 +427,49 @@ class _GarmentDetailView extends StatelessWidget {
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: FloatingActionButton.small(
-                    onPressed: onImageTap,
-                    tooltip: 'Cambiar imagen',
-                    child: const Icon(Icons.camera),
+                AnimatedAlign(
+                  duration: _isDragging
+                      ? Duration.zero
+                      : const Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                  alignment: _fabAlignment,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Listener(
+                      onPointerDown: (_) => setState(() => _isDragging = true),
+                      onPointerUp: (_) => setState(() {
+                        _isDragging = false;
+                        _snapToCorner();
+                      }),
+                      onPointerCancel: (_) => setState(() {
+                        _isDragging = false;
+                        _snapToCorner();
+                      }),
+                      child: GestureDetector(
+                        onPanUpdate: _onPanUpdate,
+                        child: FloatingActionButton.small(
+                          onPressed: widget.onImageTap,
+                          tooltip: 'Cambiar imagen',
+                          child: const Icon(Icons.camera),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
             _GarmentNameDisplay(
-              initialName: garmentData['name'],
-              onNameSaved: onNameSaved,
+              initialName: widget.garmentData['name'],
+              onNameSaved: widget.onNameSaved,
             ),
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 10),
             _LiveGarmentTagsEditor(
-              garmentId: garmentId,
-              initialTags: List<String>.from(garmentData['tags'] ?? []),
-              garmentData: garmentData,
+              garmentId: widget.garmentId,
+              initialTags: List<String>.from(widget.garmentData['tags'] ?? []),
+              garmentData: widget.garmentData,
             ),
           ],
         ),

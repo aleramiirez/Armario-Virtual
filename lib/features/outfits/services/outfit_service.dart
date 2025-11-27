@@ -9,6 +9,8 @@ class OutfitService {
     required Map<String, dynamic> topData,
     required Map<String, dynamic> bottomData,
     required Map<String, dynamic> shoesData,
+    List<String>? tags,
+    Map<String, dynamic>? layout,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -35,7 +37,24 @@ class OutfitService {
             'name': shoesData['name'],
             'imageUrl': shoesData['imageUrl'],
           },
+          'tags': tags ?? [],
+          'layout': layout,
           'createdAt': Timestamp.now(),
         });
+  }
+
+  Future<void> updateOutfitLayout(
+    String outfitId,
+    Map<String, dynamic> layout,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('outfits')
+        .doc(outfitId)
+        .update({'layout': layout});
   }
 }

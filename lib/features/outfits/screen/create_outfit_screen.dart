@@ -23,10 +23,7 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
   final OutfitService _outfitService = OutfitService();
   bool _isLoading = false;
 
-  // Variables para controlar el ajuste de imagen (contain vs cover)
-  BoxFit _topFit = BoxFit.contain;
-  BoxFit _bottomFit = BoxFit.contain;
-  BoxFit _shoesFit = BoxFit.contain;
+  // Variables para etiquetas (ELIMINADAS)
 
   Future<void> _selectGarment(
     String category,
@@ -44,20 +41,6 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
         onGarmentSelected(selectedGarment);
       });
     }
-  }
-
-  void _toggleFit(String section) {
-    setState(() {
-      if (section == 'top') {
-        _topFit = _topFit == BoxFit.contain ? BoxFit.cover : BoxFit.contain;
-      } else if (section == 'bottom') {
-        _bottomFit = _bottomFit == BoxFit.contain
-            ? BoxFit.cover
-            : BoxFit.contain;
-      } else if (section == 'shoes') {
-        _shoesFit = _shoesFit == BoxFit.contain ? BoxFit.cover : BoxFit.contain;
-      }
-    });
   }
 
   // --- NUEVA FUNCIÓN PARA GUARDAR ---
@@ -152,10 +135,6 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
                 label: 'Parte Superior',
                 placeholderIconPath: 'assets/icons/camiseta.png',
                 selectedGarmentUrl: _selectedTop?['imageUrl'],
-                fit: _topFit,
-                onToggleFit: _selectedTop != null
-                    ? () => _toggleFit('top')
-                    : null,
                 onTap: () =>
                     _selectGarment('top', (garment) => _selectedTop = garment),
               ),
@@ -166,10 +145,6 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
                 label: 'Parte Inferior',
                 placeholderIconPath: 'assets/icons/vaqueros.png',
                 selectedGarmentUrl: _selectedBottom?['imageUrl'],
-                fit: _bottomFit,
-                onToggleFit: _selectedBottom != null
-                    ? () => _toggleFit('bottom')
-                    : null,
                 onTap: () => _selectGarment(
                   'bottom',
                   (garment) => _selectedBottom = garment,
@@ -182,10 +157,6 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
                 label: 'Calzado',
                 placeholderIconPath: 'assets/icons/zapatos.png',
                 selectedGarmentUrl: _selectedShoes?['imageUrl'],
-                fit: _shoesFit,
-                onToggleFit: _selectedShoes != null
-                    ? () => _toggleFit('shoes')
-                    : null,
                 onTap: () => _selectGarment(
                   'footwear',
                   (garment) => _selectedShoes = garment,

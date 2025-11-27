@@ -93,9 +93,12 @@ class OutfitsScreen extends StatelessWidget {
                   outfitData.containsKey('bottomGarment') &&
                   outfitData.containsKey('shoesGarment')) {
                 return OutfitCard(
+                  outfitId: outfits[index].id,
                   topData: outfitData['topGarment'],
                   bottomData: outfitData['bottomGarment'],
                   shoesData: outfitData['shoesGarment'],
+                  tags: List<String>.from(outfitData['tags'] ?? []),
+                  layout: outfitData['layout'],
                 );
               }
 
@@ -124,21 +127,54 @@ class OutfitsScreen extends StatelessWidget {
                         );
                       }
 
+                      final topSnapshot = garmentSnapshots.data![0];
+                      final bottomSnapshot = garmentSnapshots.data![1];
+                      final shoesSnapshot = garmentSnapshots.data![2];
+
+                      // Si alguna de las prendas ha sido eliminada, mostramos un error
+                      if (!topSnapshot.exists ||
+                          !bottomSnapshot.exists ||
+                          !shoesSnapshot.exists) {
+                        return Card(
+                          color: Colors.grey.shade100,
+                          child: const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image, color: Colors.grey),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Prenda no disponible',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
                       // Extraemos los datos de cada prenda
                       final topData =
-                          garmentSnapshots.data![0].data()
-                              as Map<String, dynamic>;
+                          topSnapshot.data() as Map<String, dynamic>;
                       final bottomData =
-                          garmentSnapshots.data![1].data()
-                              as Map<String, dynamic>;
+                          bottomSnapshot.data() as Map<String, dynamic>;
                       final shoesData =
-                          garmentSnapshots.data![2].data()
-                              as Map<String, dynamic>;
+                          shoesSnapshot.data() as Map<String, dynamic>;
 
                       return OutfitCard(
+                        outfitId: outfits[index].id,
                         topData: topData,
                         bottomData: bottomData,
                         shoesData: shoesData,
+                        tags: List<String>.from(outfitData['tags'] ?? []),
+                        layout: outfitData['layout'],
                       );
                     },
               );
