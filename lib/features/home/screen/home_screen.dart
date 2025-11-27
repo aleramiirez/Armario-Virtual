@@ -3,10 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:armariovirtual/features/garment/screen/add_garment_screen.dart';
 import '../widgets/garment_grid.dart';
-import 'package:armariovirtual/config/app_theme.dart';
-import 'package:armariovirtual/features/outfits/screen/outfits_screen.dart';
 import 'package:armariovirtual/shared/widgets/app_drawer.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -99,8 +96,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
-                    return const Center(
-                      child: Text('Ocurrió un error al cargar las prendas.'),
+                    // DEBUG: Imprimir el error en consola
+                    debugPrint('Error cargando prendas: ${snapshot.error}');
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'Error: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
                     );
                   }
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {

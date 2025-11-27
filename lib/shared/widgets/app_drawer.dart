@@ -1,8 +1,6 @@
 import 'package:armariovirtual/config/app_theme.dart';
-import 'package:armariovirtual/features/home/screen/home_screen.dart';
 import 'package:armariovirtual/features/outfits/screen/outfits_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -30,8 +28,9 @@ class AppDrawer extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.checkroom),
             title: const Text('Mi Armario'),
+            selected: currentRoute == '/home',
             onTap: () {
-              if (ModalRoute.of(context)?.settings.name == '/home') {
+              if (currentRoute == '/home') {
                 Navigator.pop(context);
               } else {
                 Navigator.pushReplacementNamed(context, '/home');
@@ -46,6 +45,7 @@ class AppDrawer extends StatelessWidget {
               height: 30,
             ),
             title: const Text('Outfits'),
+            selected: currentRoute == '/outfits',
             onTap: () {
               // Cierra el menú y navega a la pantalla de Outfits
               Navigator.pop(context);

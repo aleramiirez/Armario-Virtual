@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:armariovirtual/features/garment/services/garment_service.dart';
 import 'package:armariovirtual/shared/utils/app_alerts.dart';
 import 'package:flutter/material.dart';
+import 'package:armariovirtual/config/app_theme.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -44,14 +45,20 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
               Navigator.of(ctx).pop();
               _pickImageFromGallery();
             },
-            child: const Text('Desde Galería'),
+            child: const Text(
+              'Desde Galería',
+              style: TextStyle(color: AppTheme.colorTextoSecundario),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
               _pickImageFromUrl();
             },
-            child: const Text('Desde URL (Recomendado)'),
+            child: const Text(
+              'Desde URL (Recomendado)',
+              style: TextStyle(color: AppTheme.colorTextoSecundario),
+            ),
           ),
         ],
       ),
