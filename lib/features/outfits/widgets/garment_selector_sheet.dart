@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:armariovirtual/features/home/widgets/garment_grid.dart';
 
 class GarmentSelectorSheet extends StatelessWidget {
-  final List<String> categoryTags;
+  final String category;
 
-  const GarmentSelectorSheet({super.key, required this.categoryTags});
+  const GarmentSelectorSheet({super.key, required this.category});
 
   @override
   Widget build(BuildContext context) {
@@ -59,14 +59,28 @@ class GarmentSelectorSheet extends StatelessWidget {
                     final filteredGarments = allGarments.where((garmentDoc) {
                       final garmentData =
                           garmentDoc.data() as Map<String, dynamic>;
+
+                      // 1. Check explicit category
+                      if (garmentData['category'] == category) {
+                        return true;
+                      }
+
+                      // 2. Fallback: Check tags if category is missing or doesn't match
+                      // (Only if the garment doesn't have a category set, to avoid misclassification)
+                      if (garmentData['category'] != null) {
+                        return false;
+                      }
+
                       final garmentTags = List<String>.from(
                         garmentData['tags'] ?? [],
                       );
 
+                      // Define fallback tags for each category
+                      final fallbackTags = _getFallbackTags(category);
+
                       return garmentTags.any(
-                        (garmentTag) => categoryTags.any(
-                          (categoryTag) =>
-                              garmentTag.toLowerCase().contains(categoryTag),
+                        (garmentTag) => fallbackTags.any(
+                          (tag) => garmentTag.toLowerCase().contains(tag),
                         ),
                       );
                     }).toList();
@@ -91,5 +105,37 @@ class GarmentSelectorSheet extends StatelessWidget {
         );
       },
     );
+  }
+
+  List<String> _getFallbackTags(String category) {
+    switch (category) {
+      case 'top':
+        return [
+          'camiseta',
+          'camisa',
+          'polo',
+          'sudadera',
+          'jersey',
+          'top',
+          'blusa',
+          'chaqueta',
+          'abrigo',
+          'chaleco',
+        ];
+      case 'bottom':
+        return ['pantalón', 'vaquero', 'falda', 'malla', 'bermuda', 'bañador'];
+      case 'footwear':
+        return [
+          'zapato',
+          'zapatilla',
+          'bota',
+          'sandalia',
+          'tacón',
+          'mocasín',
+          'chancla',
+        ];
+      default:
+        return [];
+    }
   }
 }

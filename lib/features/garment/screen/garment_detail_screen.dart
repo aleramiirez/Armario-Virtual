@@ -281,13 +281,13 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
 
       final callable = FirebaseFunctions.instanceFor(
         region: 'europe-west1',
-      ).httpsCallable('findSimilarProducts');
-      final results = await callable.call<Map<String, dynamic>>({
-        'tags': allTags,
-      });
-      final products = List<Map<String, dynamic>>.from(
-        results.data['products'] ?? [],
-      );
+      ).httpsCallable('find_similar_products');
+      final results = await callable.call({'tags': allTags});
+
+      final data = results.data as Map;
+      final products = (data['products'] as List? ?? [])
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
 
       if (mounted) {
         showModalBottomSheet(
@@ -296,10 +296,11 @@ class _GarmentDetailScreenState extends State<GarmentDetailScreen> {
         );
       }
     } catch (e) {
+      debugPrint('Error finding similar items: $e');
       if (mounted) {
         AppAlerts.showFloatingSnackBar(
           context,
-          'Ha ocurrido un error inesperado',
+          'Ha ocurrido un error inesperado: $e',
           isError: true,
         );
       }

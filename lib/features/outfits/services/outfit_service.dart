@@ -6,9 +6,9 @@ class OutfitService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> saveOutfit({
-    required String topGarmentId,
-    required String bottomGarmentId,
-    required String shoesGarmentId,
+    required Map<String, dynamic> topData,
+    required Map<String, dynamic> bottomData,
+    required Map<String, dynamic> shoesData,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -20,9 +20,21 @@ class OutfitService {
         .doc(user.uid)
         .collection('outfits')
         .add({
-          'topGarmentId': topGarmentId,
-          'bottomGarmentId': bottomGarmentId,
-          'shoesGarmentId': shoesGarmentId,
+          'topGarmentId': topData['id'],
+          'bottomGarmentId': bottomData['id'],
+          'shoesGarmentId': shoesData['id'],
+          'topGarment': {
+            'name': topData['name'],
+            'imageUrl': topData['imageUrl'],
+          },
+          'bottomGarment': {
+            'name': bottomData['name'],
+            'imageUrl': bottomData['imageUrl'],
+          },
+          'shoesGarment': {
+            'name': shoesData['name'],
+            'imageUrl': shoesData['imageUrl'],
+          },
           'createdAt': Timestamp.now(),
         });
   }

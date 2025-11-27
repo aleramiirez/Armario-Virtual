@@ -25,6 +25,7 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
   double? _imageAspectRatio;
   bool _isLoading = false;
   String _loadingMessage = '';
+  String? _selectedCategory;
 
   @override
   void dispose() {
@@ -96,11 +97,17 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: AppTheme.colorTextoSecundario),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(urlController.text),
-            child: const Text('Aceptar'),
+            child: const Text(
+              'Aceptar',
+              style: TextStyle(color: AppTheme.colorTextoSecundario),
+            ),
           ),
         ],
       ),
@@ -146,13 +153,19 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
   Future<void> _processImage(String imagePath) async {
     setState(() {
       _isLoading = true;
-      _loadingMessage = 'Procesando imagen...';
+      _loadingMessage = 'Quitando fondo y procesando...';
     });
     try {
-      final aspectRatio = await _garmentService.getImageAspectRatio(imagePath);
+      // 1. Procesamos la imagen (resize + background removal)
+      final processedFile = await _garmentService.processImage(File(imagePath));
+
+      // 2. Obtenemos el aspect ratio de la imagen YA procesada
+      final aspectRatio = await _garmentService.getImageAspectRatio(
+        processedFile.path,
+      );
       if (mounted) {
         setState(() {
-          _selectedImage = File(imagePath);
+          _selectedImage = processedFile;
           _imageAspectRatio = aspectRatio;
           _isLoading = false;
         });
@@ -195,6 +208,8 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
       await _garmentService.saveNewGarment(
         garmentName: _nameController.text,
         imageFile: _selectedImage!,
+        category: _selectedCategory!,
+        shouldProcess: false, // Ya está procesada
       );
 
       if (mounted) {
@@ -202,10 +217,11 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
         AppAlerts.showFloatingSnackBar(context, 'Prenda guardada con éxito');
       }
     } catch (e) {
+      debugPrint('Error en _submitForm: $e');
       if (mounted) {
         AppAlerts.showFloatingSnackBar(
           context,
-          'Error al guardar la prenda',
+          'Error: ${e.toString().replaceAll('Exception:', '').trim()}',
           isError: true,
         );
       }
@@ -273,13 +289,32 @@ class _AddGarmentFormState extends State<AddGarmentForm> {
           const SizedBox(height: 30),
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Nombre de la prenda'),
+            decoration: const InputDecoration(
+              labelText: 'Nombre de la prenda',
+              prefixIcon: Icon(Icons.checkroom),
+            ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Por favor, introduce un nombre.';
               }
               return null;
             },
+          ),
+          const SizedBox(height: 20),
+          DropdownButtonFormField<String>(
+            value: _selectedCategory,
+            decoration: const InputDecoration(
+              labelText: 'Categoría',
+              prefixIcon: Icon(Icons.category),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'top', child: Text('Parte Superior')),
+              DropdownMenuItem(value: 'bottom', child: Text('Parte Inferior')),
+              DropdownMenuItem(value: 'footwear', child: Text('Calzado')),
+            ],
+            onChanged: (value) => setState(() => _selectedCategory = value),
+            validator: (value) =>
+                value == null ? 'Por favor, selecciona una categoría.' : null,
           ),
           const SizedBox(height: 20),
           ElevatedButton(

@@ -2,6 +2,7 @@
 
 import 'package:armariovirtual/features/outfits/screen/create_outfit_screen.dart';
 import 'package:armariovirtual/features/outfits/widgets/outfit_card.dart';
+import 'package:armariovirtual/features/outfits/widgets/skeleton_outfit_card.dart';
 import 'package:armariovirtual/shared/widgets/app_drawer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -46,7 +47,17 @@ class OutfitsScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return GridView.builder(
+              padding: const EdgeInsets.all(10),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 0.7,
+              ),
+              itemCount: 6, // Show 6 skeletons
+              itemBuilder: (context, index) => const SkeletonOutfitCard(),
+            );
           }
           if (snapshot.hasError) {
             return const Center(child: Text('Error al cargar los outfits.'));
@@ -77,6 +88,18 @@ class OutfitsScreen extends StatelessWidget {
               final outfitData = outfits[index].data() as Map<String, dynamic>;
 
               // Usamos un FutureBuilder para cargar los datos de las 3 prendas
+              // OPTIMIZACIÓN: Si el outfit tiene los datos incrustados, los usamos directamente.
+              if (outfitData.containsKey('topGarment') &&
+                  outfitData.containsKey('bottomGarment') &&
+                  outfitData.containsKey('shoesGarment')) {
+                return OutfitCard(
+                  topData: outfitData['topGarment'],
+                  bottomData: outfitData['bottomGarment'],
+                  shoesData: outfitData['shoesGarment'],
+                );
+              }
+
+              // FALLBACK: Para outfits antiguos sin datos incrustados, los cargamos.
               return FutureBuilder(
                 // Future.wait nos permite ejecutar las 3 cargas en paralelo
                 future: Future.wait([
@@ -91,9 +114,7 @@ class OutfitsScreen extends StatelessWidget {
                     ) {
                       if (garmentSnapshots.connectionState ==
                           ConnectionState.waiting) {
-                        return const Card(
-                          child: Center(child: CircularProgressIndicator()),
-                        );
+                        return const SkeletonOutfitCard();
                       }
                       if (garmentSnapshots.hasError ||
                           !garmentSnapshots.hasData ||

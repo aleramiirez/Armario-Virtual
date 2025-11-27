@@ -13,11 +13,11 @@ import 'package:image/image.dart' as img;
 List<int> _resizeImageIsolate(Uint8List imageBytes) {
   final image = img.decodeImage(imageBytes);
   if (image == null) return imageBytes;
-  if (image.width > 1024 || image.height > 1024) {
+  if (image.width > 800 || image.height > 800) {
     final resized = image.width > image.height
-        ? img.copyResize(image, width: 1024)
-        : img.copyResize(image, height: 1024);
-    return img.encodeJpg(resized, quality: 85);
+        ? img.copyResize(image, width: 800)
+        : img.copyResize(image, height: 800);
+    return img.encodeJpg(resized, quality: 80);
   }
   return imageBytes;
 }
@@ -46,6 +46,8 @@ class GarmentService {
   Future<void> saveNewGarment({
     required String garmentName,
     required File imageFile,
+    required String category, // Nuevo campo
+    bool shouldProcess = true,
   }) async {
     // 1. Obtener el usuario actual. Si no hay, es un error.
     final user = _auth.currentUser;
@@ -53,14 +55,20 @@ class GarmentService {
       throw Exception('Usuario no autenticado.');
     }
 
-    // 2. Procesar la imagen: quitar fondo y redimensionar.
-    final processedImageFile = await _processImage(imageFile);
+    // 2. Procesar la imagen: quitar fondo y redimensionar (si se solicita).
+    final processedImageFile = shouldProcess
+        ? await processImage(imageFile)
+        : imageFile;
 
     // 3. Subir la imagen procesada a Firebase Storage.
+    debugPrint('Iniciando subida de imagen...');
     final imageUrl = await _uploadImage(processedImageFile, user.uid);
+    debugPrint('Imagen subida. URL: $imageUrl');
 
     // 4. Guardar los datos de la prenda en Firestore.
-    await _saveGarmentData(user.uid, garmentName, imageUrl);
+    debugPrint('Guardando datos en Firestore...');
+    await _saveGarmentData(user.uid, garmentName, imageUrl, category);
+    debugPrint('Datos guardados correctamente.');
   }
 
   Future<String> updateGarmentImage({
@@ -74,7 +82,7 @@ class GarmentService {
     }
 
     // 1. Procesamos la nueva imagen (quitar fondo, redimensionar)
-    final processedImageFile = await _processImage(newImageFile);
+    final processedImageFile = await processImage(newImageFile);
 
     // 2. Subimos la nueva imagen a Storage
     final newImageUrl = await _uploadImage(processedImageFile, user.uid);
@@ -101,7 +109,7 @@ class GarmentService {
   }
 
   /// Llama a la Cloud Function para quitar el fondo y redimensiona la imagen.
-  Future<File> _processImage(File imageFile) async {
+  Future<File> processImage(File imageFile) async {
     // Leemos los bytes del archivo original
     final imageBytes = await imageFile.readAsBytes();
 
@@ -110,29 +118,68 @@ class GarmentService {
     final imageBase64 = base64Encode(resizedBytes);
 
     // Llamamos a la Cloud Function
-    final callable = _functions.httpsCallable('remove_background_from_image');
-    final results = await callable.call<Map<String, dynamic>>({
-      'imageBase64': imageBase64,
-    });
+    try {
+      final callable = _functions.httpsCallable(
+        'remove_background_from_image',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 10)),
+      );
+      final results = await callable.call<Map<String, dynamic>>({
+        'imageBase64': imageBase64,
+      });
 
-    // Decodificamos el resultado y lo escribimos de vuelta en el archivo
-    final processedImageBase64 = results.data['imageBase64'] as String;
-    final processedImageBytes = base64Decode(processedImageBase64);
+      // Decodificamos el resultado y lo escribimos de vuelta en el archivo
+      final processedImageBase64 = results.data['imageBase64'] as String;
+      final processedImageBytes = base64Decode(processedImageBase64);
 
-    return await imageFile.writeAsBytes(processedImageBytes);
+      return await imageFile.writeAsBytes(processedImageBytes);
+    } catch (e) {
+      debugPrint('Error al quitar el fondo: $e');
+      // Si falla, devolvemos la imagen redimensionada original
+      return await imageFile.writeAsBytes(resizedBytes);
+    }
   }
 
   /// Sube un archivo de imagen a Firebase Storage y devuelve la URL de descarga.
   Future<String> _uploadImage(File imageFile, String userId) async {
-    final fileName = '${userId}_${DateTime.now().toIso8601String()}.png';
+    debugPrint(
+      '[_uploadImage] Iniciando. Archivo: ${imageFile.path}, Tamaño: ${await imageFile.length()} bytes',
+    );
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final fileName = '${userId}_$timestamp.png';
     final storageRef = _storage
         .ref()
         .child('garment_images')
         .child(userId)
         .child(fileName);
 
-    await storageRef.putFile(imageFile);
-    return await storageRef.getDownloadURL();
+    debugPrint('[_uploadImage] Referencia creada: ${storageRef.fullPath}');
+
+    try {
+      final task = storageRef.putFile(
+        imageFile,
+        SettableMetadata(contentType: 'image/png'),
+      );
+
+      task.snapshotEvents.listen(
+        (TaskSnapshot snapshot) {
+          debugPrint(
+            '[_uploadImage] Progreso: ${snapshot.bytesTransferred} / ${snapshot.totalBytes} (${(snapshot.bytesTransferred / snapshot.totalBytes * 100).toStringAsFixed(1)}%)',
+          );
+        },
+        onError: (e) {
+          debugPrint('[_uploadImage] Error en stream: $e');
+        },
+      );
+
+      await task.timeout(const Duration(seconds: 60));
+      debugPrint('[_uploadImage] Subida completada. Obteniendo URL...');
+      final url = await storageRef.getDownloadURL();
+      debugPrint('[_uploadImage] URL obtenida: $url');
+      return url;
+    } catch (e) {
+      debugPrint('[_uploadImage] Excepción: $e');
+      rethrow;
+    }
   }
 
   /// Guarda los metadatos de la prenda en la subcolección del usuario.
@@ -140,21 +187,21 @@ class GarmentService {
     String userId,
     String garmentName,
     String imageUrl,
+    String category,
   ) async {
     await _firestore
         .collection('users')
         .doc(userId)
         .collection('garments')
         .add({
-          'name': garmentName.trim(),
+          'name': garmentName,
           'imageUrl': imageUrl,
-          'createdAt': Timestamp.now(),
-          'tags': [],
+          'category': category,
+          'createdAt': FieldValue.serverTimestamp(),
         });
   }
 
-  /// Obtiene las dimensiones de una imagen de forma asíncrona.
-  /// Se usa para mostrar la previsualización correctamente.
+  /// Obtiene el aspect ratio de una imagen local.
   Future<double> getImageAspectRatio(String imagePath) async {
     final imageDetails = await compute(_decodeImageIsolate, imagePath);
     return imageDetails['aspectRatio'] as double;

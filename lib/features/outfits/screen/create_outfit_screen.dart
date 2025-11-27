@@ -23,15 +23,20 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
   final OutfitService _outfitService = OutfitService();
   bool _isLoading = false;
 
+  // Variables para controlar el ajuste de imagen (contain vs cover)
+  BoxFit _topFit = BoxFit.contain;
+  BoxFit _bottomFit = BoxFit.contain;
+  BoxFit _shoesFit = BoxFit.contain;
+
   Future<void> _selectGarment(
-    List<String> categoryTags,
+    String category,
     Function(DocumentSnapshot) onGarmentSelected,
   ) async {
     final selectedGarment = await showModalBottomSheet<DocumentSnapshot>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => GarmentSelectorSheet(categoryTags: categoryTags),
+      builder: (ctx) => GarmentSelectorSheet(category: category),
     );
 
     if (selectedGarment != null) {
@@ -39,6 +44,20 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
         onGarmentSelected(selectedGarment);
       });
     }
+  }
+
+  void _toggleFit(String section) {
+    setState(() {
+      if (section == 'top') {
+        _topFit = _topFit == BoxFit.contain ? BoxFit.cover : BoxFit.contain;
+      } else if (section == 'bottom') {
+        _bottomFit = _bottomFit == BoxFit.contain
+            ? BoxFit.cover
+            : BoxFit.contain;
+      } else if (section == 'shoes') {
+        _shoesFit = _shoesFit == BoxFit.contain ? BoxFit.cover : BoxFit.contain;
+      }
+    });
   }
 
   // --- NUEVA FUNCIÓN PARA GUARDAR ---
@@ -60,11 +79,20 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
     });
 
     try {
+      final topData = _selectedTop!.data() as Map<String, dynamic>;
+      topData['id'] = _selectedTop!.id;
+
+      final bottomData = _selectedBottom!.data() as Map<String, dynamic>;
+      bottomData['id'] = _selectedBottom!.id;
+
+      final shoesData = _selectedShoes!.data() as Map<String, dynamic>;
+      shoesData['id'] = _selectedShoes!.id;
+
       // 2. Llamamos al servicio para guardar los IDs de las prendas
       await _outfitService.saveOutfit(
-        topGarmentId: _selectedTop!.id,
-        bottomGarmentId: _selectedBottom!.id,
-        shoesGarmentId: _selectedShoes!.id,
+        topData: topData,
+        bottomData: bottomData,
+        shoesData: shoesData,
       );
 
       // 3. Mostramos mensaje de éxito y volvemos a la pantalla anterior
@@ -124,18 +152,12 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
                 label: 'Parte Superior',
                 placeholderIconPath: 'assets/icons/camiseta.png',
                 selectedGarmentUrl: _selectedTop?['imageUrl'],
-                onTap: () => _selectGarment([
-                  'camiseta',
-                  'camisa',
-                  'polo',
-                  'sudadera',
-                  'jersey',
-                  'top',
-                  'blusa',
-                  'chaqueta',
-                  'abrigo',
-                  'chaleco',
-                ], (garment) => _selectedTop = garment),
+                fit: _topFit,
+                onToggleFit: _selectedTop != null
+                    ? () => _toggleFit('top')
+                    : null,
+                onTap: () =>
+                    _selectGarment('top', (garment) => _selectedTop = garment),
               ),
             ),
             const SizedBox(height: 16),
@@ -144,14 +166,14 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
                 label: 'Parte Inferior',
                 placeholderIconPath: 'assets/icons/vaqueros.png',
                 selectedGarmentUrl: _selectedBottom?['imageUrl'],
-                onTap: () => _selectGarment([
-                  'pantalón',
-                  'vaquero',
-                  'falda',
-                  'malla',
-                  'bermuda',
-                  'bañador',
-                ], (garment) => _selectedBottom = garment),
+                fit: _bottomFit,
+                onToggleFit: _selectedBottom != null
+                    ? () => _toggleFit('bottom')
+                    : null,
+                onTap: () => _selectGarment(
+                  'bottom',
+                  (garment) => _selectedBottom = garment,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -160,15 +182,14 @@ class _CreateOutfitScreenState extends State<CreateOutfitScreen> {
                 label: 'Calzado',
                 placeholderIconPath: 'assets/icons/zapatos.png',
                 selectedGarmentUrl: _selectedShoes?['imageUrl'],
-                onTap: () => _selectGarment([
-                  'zapato',
-                  'zapatilla',
-                  'bota',
-                  'sandalia',
-                  'tacón',
-                  'mocasín',
-                  'chancla',
-                ], (garment) => _selectedShoes = garment),
+                fit: _shoesFit,
+                onToggleFit: _selectedShoes != null
+                    ? () => _toggleFit('shoes')
+                    : null,
+                onTap: () => _selectGarment(
+                  'footwear',
+                  (garment) => _selectedShoes = garment,
+                ),
               ),
             ),
           ],
